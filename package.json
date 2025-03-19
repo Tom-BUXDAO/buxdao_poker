@@ -1,14 +1,32 @@
 {
-  "name": "poker-bot",
-  "version": "1.0.0",
+  "name": "buxdao_poker",
+  "version": "0.1.0",
+  "private": true,
   "description": "Texas Hold'em Poker Game with Next.js and Socket.io",
-  "main": "index.js",
   "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
     "server": "cd server && npm run dev",
-    "client": "cd texas-holdem-ui && npm run dev",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "install-all": "npm install && cd server && npm install && cd ../texas-holdem-ui && npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "client": "next dev --turbopack",
+    "dev:all": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install"
+  },
+  "dependencies": {
+    "next": "15.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   },
   "keywords": [
     "poker",
@@ -18,8 +36,5 @@
     "multiplayer"
   ],
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
+  "license": "ISC"
 }
