@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useSocket } from '../../context/SocketContext';
 
 // Simply import the main page component 
-import HomePage from '../../page';
+import Home from '../../page';
 
 export default function Player3Page() {
   const { isConnected, joinTable } = useSocket();
@@ -19,5 +19,5 @@ export default function Player3Page() {
   }, [isConnected, joinTable]);
 
   // Just render the homepage component which has all the UI
-  return <HomePage />;
+  return <Home />;
 } 
