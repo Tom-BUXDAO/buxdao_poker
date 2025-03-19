@@ -105,11 +105,12 @@ const LargeCard: React.FC<{ cardName: string }> = ({ cardName }) => {
 // Player Component with face down cards
 const Player: React.FC<{ 
   name: string; 
-  position: string; 
-  playerNumber: number;
+  position: number; 
+  chips: number;
   isActive?: boolean;
   cards?: Card[];
-}> = ({ name, position, playerNumber, isActive = false, cards = [] }) => {
+  dealer?: boolean;
+}> = ({ name, position, chips, isActive = false, cards = [], dealer = false }) => {
   // Map of player profile images
   const playerImages = {
     1: "https://arweave.net/Q3Ljpx6BNV98Wv6mHO41_vgXMbGXeZgi9YSwLvHDV9M?ext=png",
@@ -122,86 +123,72 @@ const Player: React.FC<{
     8: "https://gateway.pinata.cloud/ipfs/QmXrUnsKMogkfifzqSb2odBacrYxagsCZFdEHrFjiCY3Fd"
   };
 
-  // Random chip counts for demo
-  const chipCounts = {
-    1: 1000,
-    2: 1000,
-    3: 1000,
-    4: 1000,
-    5: 1000,
-    6: 1000,
-    7: 1000,
-    8: 1000
-  };
-
-  // Check if this is a bottom player
-  const isBottomPlayer = position.includes('bottom');
-  // Player 8 is the user
-  const isUser = playerNumber === 8;
-
   // Add a highlight class for the active player
   const activeClass = isActive ? "border-yellow-400 border-4" : "";
 
+  // Check if this is a bottom seat (positions 6, 7, 8)
+  const isBottomSeat = position === 6 || position === 7 || position === 8;
+
   return (
-    <div className={`player-position ${position}`}>
-      {isBottomPlayer ? (
-        // Bottom players - profile, name, and cards
-        <div className="player-info flex flex-col items-center">
-          <div className={`player-avatar rounded-full h-20 w-20 overflow-hidden ${activeClass} border-[3px] border-white mb-2 shadow-lg`}>
-            <Image
-              src={playerImages[playerNumber as keyof typeof playerImages]} 
-              alt={name} 
-              width={80} 
-              height={80}
-              className="object-cover"
-            />
-          </div>
-          <div className="player-name-chip text-white text-base font-bold bg-gray-800 px-3 py-1 rounded-md flex items-center">
-            <span>{name}</span>
-            <span className="mx-1 text-gray-400">|</span>
-            <span className="text-yellow-400">{chipCounts[playerNumber as keyof typeof chipCounts]}</span>
-          </div>
-          
-          {/* Show cards if there are any */}
-          {cards.length > 0 && (
-            <div className="player-cards mt-2 flex space-x-1">
-              {isUser 
-                ? cards.map((card, index) => (
-                    <FaceUpCard key={index} cardName={card.fileName} />
-                  ))
-                : Array(2).fill(0).map((_, index) => (
-                    <FaceDownCard key={index} />
-                  ))
+    <div className="player-wrapper flex flex-col items-center relative">
+      {/* Player name and chips - show above avatar for non-bottom seats */}
+      {!isBottomSeat && (
+        <div className="player-name-chip text-white text-base font-bold bg-gray-800 px-3 py-1 rounded-md flex items-center mb-2">
+          <span>{name}</span>
+          <span className="mx-1 text-gray-400">|</span>
+          <span className="text-yellow-400">{chips}</span>
+        </div>
+      )}
+      
+      {/* Cards for bottom positions - show above avatar */}
+      {isBottomSeat && cards.length > 0 && (
+        <div className="flex space-x-2 mb-2">
+          {cards.map((card, idx) => (
+            <div key={idx}>
+              {position === 8 ? 
+                <FaceUpCard cardName={card.fileName} /> : 
+                <FaceDownCard />
               }
             </div>
-          )}
+          ))}
         </div>
-      ) : (
-        // Top, left and right players - name, profile, and cards
-        <div className="player-info flex flex-col items-center">
-          <div className="player-name-chip text-white text-base font-bold bg-gray-800 px-3 py-1 rounded-md flex items-center mb-2">
-            <span>{name}</span>
-            <span className="mx-1 text-gray-400">|</span>
-            <span className="text-yellow-400">{chipCounts[playerNumber as keyof typeof chipCounts]}</span>
-          </div>
-          <div className={`player-avatar rounded-full h-20 w-20 overflow-hidden ${activeClass} border-[3px] border-white mb-2 shadow-lg`}>
-            <Image
-              src={playerImages[playerNumber as keyof typeof playerImages]} 
-              alt={name} 
-              width={80} 
-              height={80}
-              className="object-cover"
-            />
-          </div>
-          
-          {/* Show cards if there are any */}
-          {cards.length > 0 && (
-            <div className="player-cards mt-2 flex space-x-1">
-              {Array(2).fill(0).map((_, index) => (
-                <FaceDownCard key={index} />
-              ))}
+      )}
+      
+      {/* Dealer Button - show beside the avatar */}
+      {dealer && (
+        <div className="absolute bottom-1/2 right-0 translate-x-4 transform bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
+          D
+        </div>
+      )}
+      
+      {/* Circular avatar */}
+      <div className={`player-avatar rounded-full h-20 w-20 overflow-hidden ${activeClass} border-[3px] border-white shadow-lg`}>
+        <Image
+          src={playerImages[position as keyof typeof playerImages]} 
+          alt={name} 
+          width={80} 
+          height={80}
+          className="object-cover"
+        />
+      </div>
+      
+      {/* Cards for non-bottom positions - show below avatar */}
+      {!isBottomSeat && cards.length > 0 && (
+        <div className="flex space-x-2 mt-2">
+          {cards.map((card, idx) => (
+            <div key={idx}>
+              <FaceDownCard />
             </div>
-          )}
+          ))}
+        </div>
+      )}
+      
+      {/* Player name and chips - show below avatar for bottom seats */}
+      {isBottomSeat && (
+        <div className="player-name-chip text-white text-base font-bold bg-gray-800 px-3 py-1 rounded-md flex items-center mt-2">
+          <span>{name}</span>
+          <span className="mx-1 text-gray-400">|</span>
+          <span className="text-yellow-400">{chips}</span>
         </div>
       )}
     </div>
@@ -407,57 +394,112 @@ const ActionButtons: React.FC<{
           +
         </button>
       </div>
-      
-      {!isGameActive && (
-        <div className="text-center mt-2 text-yellow-400">
-          Waiting for game to start...
-        </div>
-      )}
-      {isGameActive && !isPlayerTurn && (
-        <div className="text-center mt-2 text-yellow-400">
-          Waiting for your turn...
-        </div>
-      )}
     </div>
   );
 };
 
 // Chat Component
 const Chat: React.FC = () => {
+  const [showChat, setShowChat] = useState(true);
+  const [showSystem, setShowSystem] = useState(true);
+  
   const dummyMessages = [
-    { sender: 'Player 1', message: 'Good luck everyone!', time: '10:22' },
-    { sender: 'Player 3', message: 'Thanks, you too!', time: '10:23' },
-    { sender: 'Player 2', message: 'Nice hand there.', time: '10:25' },
-    { sender: 'Player 4', message: 'I should have folded.', time: '10:27' },
-    { sender: 'Player 6', message: 'All in next time!', time: '10:28' },
-  ];
+    { type: 'chat', sender: 'Player 1', message: 'Good luck everyone!', time: '10:22' },
+    { type: 'system', message: 'Game starting...', time: '10:20' },
+    { type: 'chat', sender: 'Player 3', message: 'Thanks, you too!', time: '10:23' },
+    { type: 'system', message: 'Player 1 joined the table', time: '10:21' },
+    { type: 'chat', sender: 'Player 2', message: 'Nice hand there.', time: '10:25' },
+    { type: 'system', message: 'Player 3 is the dealer', time: '10:22' },
+    { type: 'chat', sender: 'Player 4', message: 'I should have folded.', time: '10:27' },
+    { type: 'system', message: 'Player 4 calls 20', time: '10:24' },
+    { type: 'chat', sender: 'Player 6', message: 'All in next time!', time: '10:28' },
+    { type: 'system', message: 'Player 2 raises to 40', time: '10:26' },
+  ].sort((a, b) => {
+    const timeA = parseInt(a.time.replace(':', ''));
+    const timeB = parseInt(b.time.replace(':', ''));
+    return timeA - timeB;
+  });
+  
+  // Toggle switch component for better reusability
+  const ToggleSwitch: React.FC<{ 
+    label: string, 
+    isOn: boolean, 
+    onToggle: () => void,
+    activeColor?: string
+  }> = ({ label, isOn, onToggle, activeColor = 'bg-blue-600' }) => (
+    <div className="flex items-center space-x-2">
+      <span className="text-sm text-gray-300">{label}</span>
+      <button 
+        onClick={onToggle}
+        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${isOn ? activeColor : 'bg-gray-600'}`}
+      >
+        <span 
+          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isOn ? 'translate-x-6' : 'translate-x-1'}`} 
+        />
+      </button>
+    </div>
+  );
+  
+  // Filter messages based on toggle states
+  const filteredMessages = dummyMessages.filter(msg => {
+    if (msg.type === 'chat' && !showChat) return false;
+    if (msg.type === 'system' && !showSystem) return false;
+    return true;
+  });
   
   return (
-    <div className="chat-container bg-white rounded-lg shadow-lg h-full flex flex-col">
-      <div className="chat-header bg-blue-600 text-white p-2 rounded-t-lg">
-        <h3 className="text-md font-bold">Table Chat</h3>
+    <div className="chat-container bg-gray-800 rounded-lg shadow-lg h-full flex flex-col">
+      <div className="chat-header p-3 flex justify-between items-center bg-gray-900 rounded-t-lg">
+        <div className="toggle-group flex space-x-4">
+          <ToggleSwitch 
+            label="Chat" 
+            isOn={showChat} 
+            onToggle={() => setShowChat(!showChat)} 
+            activeColor="bg-blue-600"
+          />
+          <ToggleSwitch 
+            label="System" 
+            isOn={showSystem} 
+            onToggle={() => setShowSystem(!showSystem)} 
+            activeColor="bg-yellow-600"
+          />
+        </div>
       </div>
       
-      <div className="chat-messages flex-grow p-3 overflow-y-auto space-y-2 bg-gray-50 max-h-[calc(100vh-350px)]">
-        {dummyMessages.map((msg, index) => (
-          <div key={index} className="message bg-gray-100 p-2 rounded-lg">
-            <div className="message-header flex justify-between text-xs">
-              <span className="font-semibold text-blue-600">{msg.sender}</span>
-              <span className="text-gray-500">{msg.time}</span>
+      <div className="chat-messages flex-grow p-3 overflow-y-auto space-y-2 bg-gray-800">
+        {filteredMessages.length > 0 ? (
+          filteredMessages.map((msg, index) => (
+            <div key={index} className={`message ${msg.type === 'system' ? 'bg-gray-700/50' : 'bg-gray-700'} p-2 rounded-lg`}>
+              <div className="message-header flex justify-between text-xs">
+                <span className={`font-semibold ${msg.type === 'system' ? 'text-yellow-400' : 'text-blue-400'}`}>
+                  {msg.type === 'system' ? 'System' : msg.sender}
+                </span>
+                <span className="text-gray-400">{msg.time}</span>
+              </div>
+              <p className={`message-content text-sm ${msg.type === 'system' ? 'text-gray-300' : 'text-white'}`}>
+                {msg.type === 'system' ? msg.message : msg.message}
+              </p>
             </div>
-            <p className="message-content text-sm">{msg.message}</p>
+          ))
+        ) : (
+          <div className="flex justify-center items-center h-full">
+            <p className="text-gray-500 text-sm">No messages to display</p>
           </div>
-        ))}
+        )}
       </div>
       
-      <div className="chat-input p-2 bg-gray-200 rounded-b-lg">
+      <div className="chat-input p-2 bg-gray-700 rounded-b-lg mt-auto">
         <div className="flex space-x-2">
           <input 
             type="text" 
             placeholder="Type your message..." 
-            className="flex-grow p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-grow p-2 text-sm rounded-lg bg-gray-800 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={!showChat}
           />
-          <button className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-sm">
+          <button 
+            className={`${showChat ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 cursor-not-allowed'} text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+            disabled={!showChat}
+          >
             Send
           </button>
         </div>
@@ -613,7 +655,6 @@ const Table: React.FC<{
     return deck;
   };
 
-  // Determine if it's the user's turn (Player 8, position 7)
   return (
     <div className="table-container relative w-full max-w-7xl mx-auto">
       <div 
@@ -637,24 +678,7 @@ const Table: React.FC<{
           </div>
         )}
         
-        {/* Dealer button - only show if game is playing */}
-        {gameState.status === 'playing' && (
-          <div className={`absolute z-20 w-10 h-10 bg-white rounded-full flex items-center justify-center 
-            ${gameState.dealer === 0 ? 'left-[5%] top-1/2 transform -translate-y-1/2' : 
-              gameState.dealer === 1 ? 'left-[20%] top-[10%]' : 
-              gameState.dealer === 2 ? 'left-1/2 top-[10%] transform -translate-x-1/2' : 
-              gameState.dealer === 3 ? 'right-[20%] top-[10%]' : 
-              gameState.dealer === 4 ? 'right-[5%] top-1/2 transform -translate-y-1/2' : 
-              gameState.dealer === 5 ? 'right-[20%] bottom-[10%]' : 
-              gameState.dealer === 6 ? 'left-1/2 bottom-[10%] transform -translate-x-1/2' : 
-              'left-[20%] bottom-[10%]'
-            }`}
-          >
-            <span className="text-black font-bold">D</span>
-          </div>
-        )}
-        
-        {/* Total Pot display - positioned to the left of community cards */}
+        {/* Total Pot display */}
         <div className="absolute top-1/2 left-[25%] transform -translate-y-1/2 -translate-x-1/2 z-10">
           <div className="flex flex-col items-center">
             <div className="text-white text-xs font-bold uppercase tracking-wider mb-1">
@@ -664,22 +688,19 @@ const Table: React.FC<{
               <div className="pot-amount bg-gray-800/95 px-3 py-1.5 rounded-full shadow-md mr-2">
                 <span className="text-yellow-400 font-bold text-lg">${gameState.pot}</span>
               </div>
-              <div className="w-7 h-7">
-                <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-                  {/* Background circle with black color */}
-                  <circle cx="128" cy="128" r="120" fill="#1A1A1A" />
-                  
-                  {/* White lines of the chip */}
-                  <path
-                    d="M199.03711,198.30981a99.82288,99.82288,0,0,0,0-140.61962A3.982,3.982,0,0,0,198.71,57.29a3.90416,3.90416,0,0,0-.40088-.32776,99.8226,99.8226,0,0,0-140.61816,0A3.90416,3.90416,0,0,0,57.29,57.29a3.982,3.982,0,0,0-.32715.40015,99.82288,99.82288,0,0,0,0,140.61962A3.982,3.982,0,0,0,57.29,198.71a3.93475,3.93475,0,0,0,.40088.32764,99.82231,99.82231,0,0,0,140.61816,0A3.93475,3.93475,0,0,0,198.71,198.71,3.982,3.982,0,0,0,199.03711,198.30981ZM36.09229,132H68.14844a59.72942,59.72942,0,0,0,14.72217,35.47327L60.2124,190.13135A91.64821,91.64821,0,0,1,36.09229,132ZM60.2124,65.86865,82.87061,88.52673A59.72942,59.72942,0,0,0,68.14844,124H36.09229A91.64821,91.64821,0,0,1,60.2124,65.86865ZM219.90771,124H187.85156a59.72942,59.72942,0,0,0-14.72217-35.47327L195.7876,65.86865A91.64821,91.64821,0,0,1,219.90771,124ZM128,180a52,52,0,1,1,52-52A52.059,52.059,0,0,1,128,180Zm39.47314-97.12952A59.73257,59.73257,0,0,0,132,68.14819V36.09229A91.64757,91.64757,0,0,1,190.13135,60.2124ZM124,68.14819A59.73257,59.73257,0,0,0,88.52686,82.87048L65.86865,60.2124A91.64757,91.64757,0,0,1,124,36.09229ZM88.52686,173.12952A59.73257,59.73257,0,0,0,124,187.85181v32.0559A91.64757,91.64757,0,0,1,65.86865,195.7876ZM132,187.85181a59.73257,59.73257,0,0,0,35.47314-14.72229l22.65821,22.65808A91.64757,91.64757,0,0,1,132,219.90771Zm41.12939-20.37854A59.72942,59.72942,0,0,0,187.85156,132h32.05615a91.64821,91.64821,0,0,1-24.12011,58.13135Z"
-                    fill="white"
-                    stroke="none"
-                  />
-                  
-                  {/* Inner circle for the chip */}
-                  <circle cx="128" cy="128" r="52" fill="#1A1A1A" stroke="white" strokeWidth="2" />
-                </svg>
-              </div>
+              {gameState.pot > 0 && (
+                <div className="w-7 h-7">
+                  <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="128" cy="128" r="120" fill="#1A1A1A" />
+                    <path
+                      d="M199.03711,198.30981a99.82288,99.82288,0,0,0,0-140.61962A3.982,3.982,0,0,0,198.71,57.29a3.90416,3.90416,0,0,0-.40088-.32776,99.8226,99.8226,0,0,0-140.61816,0A3.90416,3.90416,0,0,0,57.29,57.29a3.982,3.982,0,0,0-.32715.40015,99.82288,99.82288,0,0,0,0,140.61962A3.982,3.982,0,0,0,57.29,198.71a3.93475,3.93475,0,0,0,.40088.32764,99.82231,99.82231,0,0,0,140.61816,0A3.93475,3.93475,0,0,0,198.71,198.71,3.982,3.982,0,0,0,199.03711,198.30981ZM36.09229,132H68.14844a59.72942,59.72942,0,0,0,14.72217,35.47327L60.2124,190.13135A91.64821,91.64821,0,0,1,36.09229,132ZM60.2124,65.86865,82.87061,88.52673A59.72942,59.72942,0,0,0,68.14844,124H36.09229A91.64821,91.64821,0,0,1,60.2124,65.86865ZM219.90771,124H187.85156a59.72942,59.72942,0,0,0-14.72217-35.47327L195.7876,65.86865A91.64821,91.64821,0,0,1,219.90771,124ZM128,180a52,52,0,1,1,52-52A52.059,52.059,0,0,1,128,180Zm39.47314-97.12952A59.73257,59.73257,0,0,0,132,68.14819V36.09229A91.64757,91.64757,0,0,1,190.13135,60.2124ZM124,68.14819A59.73257,59.73257,0,0,0,88.52686,82.87048L65.86865,60.2124A91.64757,91.64757,0,0,1,124,36.09229ZM88.52686,173.12952A59.73257,59.73257,0,0,0,124,187.85181v32.0559A91.64757,91.64757,0,0,1,65.86865,195.7876ZM132,187.85181a59.73257,59.73257,0,0,0,35.47314-14.72229l22.65821,22.65808A91.64757,91.64757,0,0,1,132,219.90771Zm41.12939-20.37854A59.72942,59.72942,0,0,0,187.85156,132h32.05615a91.64821,91.64821,0,0,1-24.12011,58.13135Z"
+                      fill="white"
+                      stroke="none"
+                    />
+                    <circle cx="128" cy="128" r="52" fill="#1A1A1A" stroke="white" strokeWidth="2" />
+                  </svg>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -702,14 +723,15 @@ const Table: React.FC<{
         
         {/* Players positioned around the table */}
         <div className="players-layout absolute inset-0">
-          {/* Left Player - Player 1 */}
+          {/* Player 1 (left) */}
           <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/3">
             <Player 
               name="Player 1" 
-              position="left-player" 
-              playerNumber={1}
+              position={1}
+              chips={players[0].chips}
               isActive={players[0].isActive}
-              cards={gameState.status === 'playing' ? players[0].hand : []} 
+              cards={gameState.status === 'playing' ? players[0].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 0}
             />
             {players[0].bet > 0 && (
               <div className="absolute -right-12 top-1/2 transform -translate-y-1/2">
@@ -718,30 +740,15 @@ const Table: React.FC<{
             )}
           </div>
           
-          {/* Right Player - Player 5 */}
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/3">
-            <Player 
-              name="Player 5" 
-              position="right-player" 
-              playerNumber={5}
-              isActive={players[4].isActive}
-              cards={gameState.status === 'playing' ? players[4].hand : []} 
-            />
-            {players[4].bet > 0 && (
-              <div className="absolute -left-12 top-1/2 transform -translate-y-1/2">
-                <PokerChip amount={players[4].bet} playerNumber={5} />
-              </div>
-            )}
-          </div>
-          
-          {/* Top Players - 3 players */}
+          {/* Player 2 (top left) */}
           <div className="absolute top-0 left-1/4 transform -translate-y-1/2 -translate-x-1/4">
             <Player 
               name="Player 2" 
-              position="top-player" 
-              playerNumber={2}
+              position={2}
+              chips={players[1].chips}
               isActive={players[1].isActive}
-              cards={gameState.status === 'playing' ? players[1].hand : []} 
+              cards={gameState.status === 'playing' ? players[1].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 1}
             />
             {players[1].bet > 0 && (
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-8">
@@ -749,13 +756,16 @@ const Table: React.FC<{
               </div>
             )}
           </div>
+          
+          {/* Player 3 (top center) */}
           <div className="absolute top-0 left-1/2 transform -translate-y-1/2 -translate-x-1/2">
             <Player 
               name="Player 3" 
-              position="top-player" 
-              playerNumber={3}
+              position={3}
+              chips={players[2].chips}
               isActive={players[2].isActive}
-              cards={gameState.status === 'playing' ? players[2].hand : []} 
+              cards={gameState.status === 'playing' ? players[2].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 2}
             />
             {players[2].bet > 0 && (
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-8">
@@ -763,13 +773,16 @@ const Table: React.FC<{
               </div>
             )}
           </div>
+          
+          {/* Player 4 (top right) */}
           <div className="absolute top-0 right-1/4 transform -translate-y-1/2 translate-x-1/4">
             <Player 
               name="Player 4" 
-              position="top-player" 
-              playerNumber={4}
+              position={4}
+              chips={players[3].chips}
               isActive={players[3].isActive}
-              cards={gameState.status === 'playing' ? players[3].hand : []} 
+              cards={gameState.status === 'playing' ? players[3].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 3}
             />
             {players[3].bet > 0 && (
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-8">
@@ -778,28 +791,49 @@ const Table: React.FC<{
             )}
           </div>
           
-          {/* Bottom Players - 3 players */}
-          <div className="absolute bottom-0 left-1/4 transform translate-y-1/2 -translate-x-1/4">
+          {/* Player 5 (right) */}
+          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/3">
             <Player 
-              name="Player 8" 
-              position="bottom-player" 
-              playerNumber={8}
-              isActive={players[7].isActive}
-              cards={gameState.status === 'playing' ? players[7].hand : []} 
+              name="Player 5" 
+              position={5}
+              chips={players[4].chips}
+              isActive={players[4].isActive}
+              cards={gameState.status === 'playing' ? players[4].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 4}
             />
-            {players[7].bet > 0 && (
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-8">
-                <PokerChip amount={players[7].bet} playerNumber={8} />
+            {players[4].bet > 0 && (
+              <div className="absolute -left-12 top-1/2 transform -translate-y-1/2">
+                <PokerChip amount={players[4].bet} playerNumber={5} />
               </div>
             )}
           </div>
+          
+          {/* Player 6 (bottom right) */}
+          <div className="absolute bottom-0 right-1/4 transform translate-y-1/2 translate-x-1/4">
+            <Player 
+              name="Player 6" 
+              position={6}
+              chips={players[5].chips}
+              isActive={players[5].isActive}
+              cards={gameState.status === 'playing' ? players[5].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 5}
+            />
+            {players[5].bet > 0 && (
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-8">
+                <PokerChip amount={players[5].bet} playerNumber={6} />
+              </div>
+            )}
+          </div>
+          
+          {/* Player 7 (bottom center) */}
           <div className="absolute bottom-0 left-1/2 transform translate-y-1/2 -translate-x-1/2">
             <Player 
               name="Player 7" 
-              position="bottom-player" 
-              playerNumber={7}
+              position={7}
+              chips={players[6].chips}
               isActive={players[6].isActive}
-              cards={gameState.status === 'playing' ? players[6].hand : []} 
+              cards={gameState.status === 'playing' ? players[6].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 6}
             />
             {players[6].bet > 0 && (
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-8">
@@ -807,17 +841,20 @@ const Table: React.FC<{
               </div>
             )}
           </div>
-          <div className="absolute bottom-0 right-1/4 transform translate-y-1/2 translate-x-1/4">
+          
+          {/* Player 8 (bottom left) - Current user */}
+          <div className="absolute bottom-0 left-1/4 transform translate-y-1/2 -translate-x-1/4">
             <Player 
-              name="Player 6" 
-              position="bottom-player" 
-              playerNumber={6}
-              isActive={players[5].isActive}
-              cards={gameState.status === 'playing' ? players[5].hand : []} 
+              name="Player 8" 
+              position={8}
+              chips={players[7].chips}
+              isActive={players[7].isActive}
+              cards={gameState.status === 'playing' ? players[7].hand : []}
+              dealer={gameState.status === 'playing' && gameState.dealer === 7}
             />
-            {players[5].bet > 0 && (
+            {players[7].bet > 0 && (
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-8">
-                <PokerChip amount={players[5].bet} playerNumber={6} />
+                <PokerChip amount={players[7].bet} playerNumber={8} />
               </div>
             )}
           </div>
