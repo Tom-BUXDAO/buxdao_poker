@@ -247,7 +247,7 @@ export default function TestTable() {
                         <div className="font-bold">{winner.name} wins with {winner.handRank}</div>
                         {winner.winningHand && winner.winningHand.length > 0 && (
                           <div className="flex gap-1 mt-1">
-                            {winner.winningHand.map((card: Card, cardIndex) => (
+                            {winner.winningHand.map((card: Card, cardIndex: number) => (
                               <div key={cardIndex} className="w-10 h-14 bg-white rounded-md relative">
                                 {card.fileName && (
                                   <Image
