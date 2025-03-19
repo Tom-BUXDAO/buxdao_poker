@@ -1,0 +1,25 @@
+{
+  "name": "poker-bot",
+  "version": "1.0.0",
+  "description": "Texas Hold'em Poker Game with Next.js and Socket.io",
+  "main": "index.js",
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd texas-holdem-ui && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install && cd ../texas-holdem-ui && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "poker",
+    "texas-holdem",
+    "nextjs",
+    "socket.io",
+    "multiplayer"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
