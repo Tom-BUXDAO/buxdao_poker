@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
+import { SocketProvider } from "./context/SocketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Texas Hold'em Poker",
-  description: "A multiplayer Texas Hold'em poker game",
+  description: "Multiplayer poker game with NextJS and Socket.io",
 };
 
 export default function RootLayout({
@@ -18,9 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers>
+        <SocketProvider>
           {children}
-        </Providers>
+        </SocketProvider>
       </body>
     </html>
   );

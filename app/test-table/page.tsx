@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useGameState } from '../hooks/useGameState';
 import Link from 'next/link';
 import Image from 'next/image';
+import GlobalChat from '../components/GlobalChat';
 
 // Define card types
 interface Card {
@@ -13,104 +14,170 @@ interface Card {
   fileName: string;
 }
 
+// Memoize static components
+const PlayerOption = memo(({ number, name, avatar }: { number: string; name: string; avatar: string }) => (
+  <Link
+    key={number}
+    href={`/test-table/${number}`}
+    className="p-4 bg-gray-700 rounded-lg hover:bg-blue-700 transition-colors flex flex-col items-center"
+  >
+    <div className="w-16 h-16 bg-gray-600 rounded-full mb-2 overflow-hidden">
+      <Image
+        src={avatar}
+        alt={name}
+        width={64}
+        height={64}
+        className="object-cover"
+        unoptimized={true}
+        priority={true}
+      />
+    </div>
+    <span className="font-bold">{name}</span>
+  </Link>
+));
+
+// Wrap the component to prevent render loops
 export default function TestTable() {
+  // Use refs to track mounted state to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+  
   const { socket, isConnected, joinTable, leaveTable, sendAction, sendMessage, startGame } = useSocket();
   const { tableState, messages, error } = useGameState();
-  const [playerName, setPlayerName] = useState('');
-  const [chatMessage, setChatMessage] = useState('');
-  const [hasJoined, setHasJoined] = useState(false);
-  const [raiseAmount, setRaiseAmount] = useState(0);
-  const [showRaiseInput, setShowRaiseInput] = useState(false);
+  const [state, setState] = useState({
+    playerName: '',
+    chatMessage: '',
+    hasJoined: false,
+    raiseAmount: 0,
+    showRaiseInput: false
+  });
+  
+  // Destructure for easier access
+  const { playerName, chatMessage, hasJoined, raiseAmount, showRaiseInput } = state;
+  
+  // Safe state update function to prevent state updates after unmount
+  const safeSetState = useCallback((updates: Partial<typeof state>) => {
+    if (isMountedRef.current) {
+      setState(prev => ({ ...prev, ...updates }));
+    }
+  }, []);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  // List of available test players
-  const testPlayers = [
-    { number: 'player1', name: 'Player 1' },
-    { number: 'player2', name: 'Player 2' },
-    { number: 'player3', name: 'Player 3' },
-    { number: 'player4', name: 'Player 4' },
-    { number: 'player5', name: 'Player 5' },
-    { number: 'player6', name: 'Player 6' },
-    { number: 'player7', name: 'Player 7' },
-    { number: 'player8', name: 'Player 8' },
-  ];
+  // Default avatar for testing - memoize this
+  const defaultAvatar = useMemo(() => "https://arweave.net/Q3Ljpx6BNV98Wv6mHO41_vgXMbGXeZgi9YSwLvHDV9M?ext=png", []);
 
-  // Default avatar for testing
-  const defaultAvatar = "https://arweave.net/Q3Ljpx6BNV98Wv6mHO41_vgXMbGXeZgi9YSwLvHDV9M?ext=png";
+  // List of available test players - memoize this
+  const testPlayers = useMemo(() => [
+    { number: 'player1', name: 'Player 1', avatar: defaultAvatar },
+    { number: 'player2', name: 'Player 2', avatar: defaultAvatar },
+    { number: 'player3', name: 'Player 3', avatar: defaultAvatar },
+    { number: 'player4', name: 'Player 4', avatar: defaultAvatar },
+    { number: 'player5', name: 'Player 5', avatar: defaultAvatar },
+    { number: 'player6', name: 'Player 6', avatar: defaultAvatar },
+    { number: 'player7', name: 'Player 7', avatar: defaultAvatar },
+    { number: 'player8', name: 'Player 8', avatar: defaultAvatar },
+  ], [defaultAvatar]);
 
-  // Handle joining the table
-  const handleJoin = () => {
+  // Handle joining the table - memoize this callback
+  const handleJoin = useCallback(() => {
     if (!playerName.trim()) {
       alert('Please enter your name');
       return;
     }
     
     joinTable('test-table', playerName, defaultAvatar);
-    setHasJoined(true);
-  };
+    safeSetState({ hasJoined: true });
+  }, [playerName, joinTable, defaultAvatar, safeSetState]);
 
-  // Handle leaving the table
-  const handleLeave = () => {
+  // Handle leaving the table - memoize this callback
+  const handleLeave = useCallback(() => {
     leaveTable();
-    setHasJoined(false);
-  };
+    safeSetState({ hasJoined: false });
+  }, [leaveTable, safeSetState]);
 
-  // Handle sending chat messages
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Handle sending chat messages - memoize this callback
+  const handleSendMessage = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!chatMessage.trim()) return;
     
     sendMessage(chatMessage);
-    setChatMessage('');
-  };
+    safeSetState({ chatMessage: '' });
+  }, [chatMessage, sendMessage, safeSetState]);
 
-  // Handle player actions
-  const handleAction = (action: string, amount?: number) => {
+  // Handle player actions - memoize this callback
+  const handleAction = useCallback((action: string, amount?: number) => {
     sendAction(action, amount);
-    setShowRaiseInput(false);
-  };
+    safeSetState({ showRaiseInput: false });
+  }, [sendAction, safeSetState]);
 
-  // Set initial raise amount when showing raise input
+  // Set initial raise amount when showing raise input - use useEffect with proper dependencies
   useEffect(() => {
     if (showRaiseInput && tableState.gameState.currentBet > 0) {
-      setRaiseAmount(tableState.gameState.currentBet * 2);
+      safeSetState({ raiseAmount: tableState.gameState.currentBet * 2 });
     }
-  }, [showRaiseInput, tableState.gameState.currentBet]);
+  }, [showRaiseInput, tableState.gameState.currentBet, safeSetState]);
 
-  // Check if it's the player's turn
-  const isPlayerTurn = tableState.isYourTurn;
+  // Render the player options with memoized component
+  const renderPlayerOptions = useMemo(() => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {testPlayers.map((player) => (
+        <PlayerOption 
+          key={player.number}
+          number={player.number} 
+          name={player.name} 
+          avatar={player.avatar} 
+        />
+      ))}
+    </div>
+  ), [testPlayers]);
 
-  // Get current player's data
-  const currentPlayer = tableState.players.find(
-    player => socket && player.id === socket.id
+  // Check if it's the player's turn - memoize this
+  const isPlayerTurn = useMemo(() => tableState.isYourTurn, [tableState.isYourTurn]);
+
+  // Get current player's data - memoize this
+  const currentPlayer = useMemo(() => 
+    tableState.players.find(player => socket && player.id === socket.id),
+    [tableState.players, socket]
   );
 
-  // Get player positions
+  // Get player positions - memoize these values
   const dealerPosition = tableState.gameState.dealer;
-  const getSmallBlindPosition = () => {
+  
+  // Memoize these functions
+  const getSmallBlindPosition = useCallback(() => {
     if (dealerPosition === undefined || tableState.players.length === 0) return -1;
     return (dealerPosition + 1) % tableState.players.length;
-  };
-  const getBigBlindPosition = () => {
+  }, [dealerPosition, tableState.players.length]);
+  
+  const getBigBlindPosition = useCallback(() => {
     if (dealerPosition === undefined || tableState.players.length === 0) return -1;
     return (dealerPosition + 2) % tableState.players.length;
-  };
+  }, [dealerPosition, tableState.players.length]);
 
-  // Get player position names
-  const getPlayerPositionName = (playerIndex: number) => {
+  // Get player position names - memoize this function
+  const getPlayerPositionName = useCallback((playerIndex: number) => {
     if (playerIndex === dealerPosition) return 'Dealer';
     if (playerIndex === getSmallBlindPosition()) return 'Small Blind';
     if (playerIndex === getBigBlindPosition()) return 'Big Blind';
     return '';
-  };
+  }, [dealerPosition, getSmallBlindPosition, getBigBlindPosition]);
 
-  // Get minimum raise amount
-  const getMinimumRaiseAmount = () => {
+  // Get minimum raise amount - memoize this function
+  const getMinimumRaiseAmount = useCallback(() => {
     const currentBet = tableState.gameState.currentBet;
     return currentBet > 0 ? currentBet * 2 : tableState.gameState.bigBlind * 2;
-  };
+  }, [tableState.gameState.currentBet, tableState.gameState.bigBlind]);
 
-  // Check if the game is in showdown phase
-  const isShowdown = tableState.gameState.phase === 'showdown';
+  // Check if the game is in showdown phase - memoize this
+  const isShowdown = useMemo(() => 
+    tableState.gameState.phase === 'showdown',
+    [tableState.gameState.phase]
+  );
 
   return (
     <div className="min-h-screen p-4 bg-gray-900 text-white">
@@ -138,27 +205,7 @@ export default function TestTable() {
             You can open multiple browser windows to simulate a full table of players.
           </p>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {testPlayers.map((player) => (
-              <Link
-                key={player.number}
-                href={`/test-table/${player.number}`}
-                className="p-4 bg-gray-700 rounded-lg hover:bg-blue-700 transition-colors flex flex-col items-center"
-              >
-                <div className="w-16 h-16 bg-gray-600 rounded-full mb-2 overflow-hidden">
-                  <Image
-                    src={defaultAvatar}
-                    alt={player.name}
-                    width={64}
-                    height={64}
-                    className="object-cover"
-                    unoptimized={true}
-                  />
-                </div>
-                <span className="font-bold">{player.name}</span>
-              </Link>
-            ))}
-          </div>
+          {renderPlayerOptions}
         </div>
         
         {/* Custom join form */}
@@ -169,7 +216,7 @@ export default function TestTable() {
               <input
                 type="text"
                 value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
+                onChange={(e) => safeSetState({ playerName: e.target.value })}
                 placeholder="Enter your name"
                 className="p-2 rounded text-black flex-grow"
               />
@@ -350,7 +397,7 @@ export default function TestTable() {
                         </button>
                       )}
                       <button
-                        onClick={() => setShowRaiseInput(true)}
+                        onClick={() => safeSetState({ showRaiseInput: true })}
                         className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
                         disabled={currentPlayer && currentPlayer.chips <= 0}
                       >
@@ -371,7 +418,7 @@ export default function TestTable() {
                         <input
                           type="number"
                           value={raiseAmount}
-                          onChange={(e) => setRaiseAmount(Math.max(getMinimumRaiseAmount(), parseInt(e.target.value) || 0))}
+                          onChange={(e) => safeSetState({ raiseAmount: Math.max(getMinimumRaiseAmount(), parseInt(e.target.value) || 0) })}
                           className="p-2 rounded text-black w-24"
                           min={getMinimumRaiseAmount()}
                           max={currentPlayer ? currentPlayer.chips + (currentPlayer.bet || 0) : 0}
@@ -387,7 +434,7 @@ export default function TestTable() {
                           Raise to ${raiseAmount}
                         </button>
                         <button
-                          onClick={() => setShowRaiseInput(false)}
+                          onClick={() => safeSetState({ showRaiseInput: false })}
                           className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-700"
                         >
                           Cancel
@@ -450,34 +497,8 @@ export default function TestTable() {
               </div>
               
               {/* Chat */}
-              <div className="p-4 bg-gray-800 rounded-lg">
-                <h2 className="text-xl font-bold mb-2">Chat</h2>
-                <div className="h-60 overflow-y-auto mb-2 space-y-2 bg-gray-900 p-2 rounded">
-                  {messages.length > 0 ? (
-                    messages.map((msg, i) => (
-                      <div key={i} className="text-sm">
-                        <span className="font-bold">{msg.playerName}:</span> {msg.message}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-400">No messages yet</div>
-                  )}
-                </div>
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type a message"
-                    className="p-2 rounded text-black flex-grow"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-                  >
-                    Send
-                  </button>
-                </form>
+              <div className="p-4 bg-gray-800 rounded-lg h-60">
+                <GlobalChat playerName={currentPlayer?.name || 'Player'} />
               </div>
             </div>
           </div>
