@@ -289,6 +289,10 @@ io.on('connection', (socket) => {
     // Short delay before dealing cards
     setTimeout(() => {
       try {
+        // Randomly assign dealer position before starting a new hand
+        table.gameState.dealer = Math.floor(Math.random() * table.players.length);
+        console.log(`Randomly assigned dealer position to ${table.gameState.dealer}`);
+        
         // Start a new hand
         pokerLogic.startNewHand(table);
         

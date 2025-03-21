@@ -207,6 +207,52 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window._socketUpdateInProgress = true;
       console.log('Socket received table state event:', data.gameState.status);
       
+      // Add diagnostic logging for card data
+      if (data.gameState.status === 'playing') {
+        // Check for player cards
+        const playerCardDiagnostics = Array.isArray(data.players) 
+          ? data.players.map(p => ({
+              position: p.position,
+              name: p.name,
+              hasCards: p.hand?.length > 0,
+              cardCount: p.hand?.length || 0,
+              cardDetails: p.hand ? p.hand.map(c => ({
+                value: c.value,
+                suit: c.suit,
+                hasFileName: !!c.fileName,
+                fileName: c.fileName
+              })) : []
+            }))
+          : [];
+          
+        console.log('SOCKET RECEIVED CARDS DIAGNOSTIC:', {
+          gameStatus: data.gameState.status,
+          phase: data.gameState.phase,
+          dealer: data.gameState.dealer,
+          playersWithCards: playerCardDiagnostics.filter(p => p.hasCards).length,
+          playerDetails: playerCardDiagnostics
+        });
+        
+        // Ensure player cards have fileName property
+        if (Array.isArray(data.players)) {
+          data.players = data.players.map(player => {
+            if (player.hand && player.hand.length > 0) {
+              player.hand = player.hand.map(card => {
+                if (!card.fileName && card.value && card.suit) {
+                  // Generate fileName from value and suit
+                  card.fileName = `${card.value}${card.suit.toLowerCase()}`;
+                }
+                return card;
+              });
+            }
+            return player;
+          });
+          
+          console.log('Added fileName to cards for players:', 
+            data.players.filter(p => p.hand?.length > 0).length);
+        }
+      }
+      
       // Clear the flag after a short delay to allow state to settle
       setTimeout(() => {
         window._socketUpdateInProgress = false;

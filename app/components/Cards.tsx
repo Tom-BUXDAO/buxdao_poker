@@ -51,15 +51,16 @@ export const LargeCard: React.FC<{ cardName: string }> = ({ cardName }) => {
 };
 
 // User Hand Component (shown in bottom left corner)
-export const UserHand: React.FC<{ cards: Card[], folded: boolean }> = ({ cards, folded }) => {
-  if (cards.length === 0) {
+export const UserHand: React.FC<{ cards: Card[] | undefined, folded: boolean }> = ({ cards = [], folded }) => {
+  // Safely handle undefined or null cards
+  if (!cards || cards.length === 0) {
     return <div className="absolute bottom-0 left-8 flex space-x-3 z-20"></div>;
   }
   
   return (
     <div className={`absolute bottom-0 left-8 flex space-x-3 z-20 ${folded ? "opacity-40" : ""}`}>
       {cards.map((card, index) => (
-        <LargeCard key={index} cardName={card.fileName} />
+        <LargeCard key={index} cardName={card.fileName || `${card.value}${card.suit}`} />
       ))}
     </div>
   );

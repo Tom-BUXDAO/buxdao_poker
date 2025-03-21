@@ -123,6 +123,28 @@ export function useGameState() {
     socket.on('tableState', (data) => {
       console.log('Received table state update:', data);
       
+      // Process player cards to ensure fileName property
+      if (data.players && Array.isArray(data.players)) {
+        data.players = data.players.map(player => {
+          if (player.hand && player.hand.length > 0) {
+            // Process each card to ensure fileName property
+            player.hand = player.hand.map(card => {
+              if (!card.fileName && card.value && card.suit) {
+                return {
+                  ...card,
+                  fileName: `${card.value}${card.suit.toLowerCase()}`
+                };
+              }
+              return card;
+            });
+          }
+          return player;
+        });
+        
+        console.log('Processed player cards:', 
+          data.players.filter(p => p.hand?.length > 0).length + ' players have cards');
+      }
+      
       // Update table state
       batchUpdate({ tableState: data });
       

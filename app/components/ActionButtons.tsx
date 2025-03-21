@@ -69,89 +69,108 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   
   return (
     <div className="action-buttons">
-      {/* Main action buttons */}
+      {/* Main buttons row */}
       <div className="flex justify-center space-x-3 mb-2">
-        <button 
-          disabled={isDisabled}
-          className={`bg-red-600 hover:bg-red-700 text-white px-12 py-2 rounded-md font-bold text-lg
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={handleFold}
-        >
-          FOLD
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-blue-600 hover:bg-blue-700 text-white px-12 py-2 rounded-md font-bold text-lg
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={handleCall}
-        >
-          {currentBet > 0 ? `CALL ${currentBet}` : 'CHECK'}
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-md font-bold text-lg
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={handleRaise}
-        >
-          RAISE {betAmount}
-        </button>
+        <div className="w-[130px]">
+          <button 
+            disabled={isDisabled}
+            className={`bg-red-600 hover:bg-red-700 text-white w-full py-2 rounded-md font-bold text-lg
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={handleFold}
+          >
+            FOLD
+          </button>
+        </div>
+
+        <div className="w-[130px]">
+          <button 
+            disabled={isDisabled}
+            className={`bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-md font-bold text-lg
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={handleCall}
+          >
+            {currentBet > 0 ? `CALL ${currentBet}` : 'CHECK'}
+          </button>
+        </div>
+
+        <div className="w-[130px]">
+          <button 
+            disabled={isDisabled}
+            className={`bg-green-600 hover:bg-green-700 text-white w-full py-2 rounded-md font-bold text-lg
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={handleRaise}
+          >
+            RAISE {betAmount}
+          </button>
+        </div>
       </div>
       
-      {/* Bet sizing controls */}
-      <div className="flex justify-center items-center space-x-2">
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-sm border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => currentBet > 0 && setBetAmount(Math.floor(currentBet * 1.5))}
-        >
-          1/2
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-sm border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => currentBet > 0 && setBetAmount(Math.floor(currentBet * 1.67))}
-        >
-          2/3
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-sm border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => currentBet > 0 && setBetAmount(currentBet * 2)}
-        >
-          POT
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-sm border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => setBetAmount(1000)}
-        >
-          ALL IN
-        </button>
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded-full border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title="Decrease by min bet"
-          onClick={decreaseBet}
-        >
-          -
-        </button>
-        <div className={`${isDisabled ? 'bg-gray-200 text-gray-500' : 'bg-white text-black'} px-5 py-1 rounded-sm text-center min-w-[40px]`}>
-          {betAmount}
+      {/* Secondary buttons row - precisely aligned with buttons above */}
+      <div className="flex justify-center space-x-3">
+        {/* 1/2 and 2/3 buttons aligned with FOLD */}
+        <div className="w-[130px] flex space-x-1">
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white py-1 rounded-sm border border-gray-600 text-sm flex-1
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => currentBet > 0 && setBetAmount(Math.floor(currentBet * 1.5))}
+          >
+            1/2
+          </button>
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white py-1 rounded-sm border border-gray-600 text-sm flex-1
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => currentBet > 0 && setBetAmount(Math.floor(currentBet * 1.67))}
+          >
+            2/3
+          </button>
         </div>
-        <button 
-          disabled={isDisabled}
-          className={`bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded-full border border-gray-600 text-sm
-            ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title="Increase by min bet"
-          onClick={increaseBet}
-        >
-          +
-        </button>
+        
+        {/* POT and ALL IN buttons aligned with CALL/CHECK */}
+        <div className="w-[130px] flex space-x-1">
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white py-1 rounded-sm border border-gray-600 text-sm flex-1
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => currentBet > 0 && setBetAmount(currentBet * 2)}
+          >
+            POT
+          </button>
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white py-1 rounded-sm border border-gray-600 text-sm flex-1
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => setBetAmount(1000)}
+          >
+            ALL IN
+          </button>
+        </div>
+        
+        {/* Increment/decrement controls aligned with RAISE */}
+        <div className="w-[130px] flex items-center space-x-1">
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white w-8 h-8 rounded-full border border-gray-600 text-sm flex items-center justify-center
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Decrease by min bet"
+            onClick={decreaseBet}
+          >
+            -
+          </button>
+          <div className={`${isDisabled ? 'bg-gray-200 text-gray-500' : 'bg-white text-black'} px-2 py-1 rounded-sm text-center flex-grow`}>
+            {betAmount}
+          </div>
+          <button 
+            disabled={isDisabled}
+            className={`bg-gray-800 hover:bg-gray-700 text-white w-8 h-8 rounded-full border border-gray-600 text-sm flex items-center justify-center
+              ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Increase by min bet"
+            onClick={increaseBet}
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
   );

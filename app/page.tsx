@@ -99,53 +99,22 @@ export default function Home() {
     console.log('Home: Game state updated:', gameState);
   }, [gameState]);
   
-  // Update local gameState when tableState changes
+  // Listen for tableState updates from useGameState
   useEffect(() => {
     if (tableState && tableState.gameState) {
-      console.log('Updating local gameState from tableState:', tableState.gameState);
+      // Debug table state to understand the problem
+      console.log('Home component received tableState update:', {
+        status: tableState.gameState?.status,
+        phase: tableState.gameState?.phase,
+        dealer: tableState.gameState?.dealer,
+        playersWithCards: tableState.players?.filter(p => p.hand?.length > 0).length || 0
+      });
       
-      // Extract player's cards from the player object in tableState
-      let userCards: Card[] = [];
-      if (playerPosition !== undefined && tableState.players && tableState.players.length > 0) {
-        const playerObj = tableState.players.find(p => p.position === playerPosition);
-        if (playerObj && playerObj.hand) {
-          userCards = [...playerObj.hand];
-          console.log(`Found cards for player ${playerPosition}:`, userCards);
-        }
-      }
-      
-      // Check if game is actually 'playing' from the server
-      const serverStatus = tableState.gameState.status || 'waiting';
-      const isPlaying = serverStatus === 'playing' || 
-                        tableState.gameState.phase === 'preflop' ||
-                        tableState.gameState.phase === 'flop' || 
-                        tableState.gameState.phase === 'turn' || 
-                        tableState.gameState.phase === 'river' ||
-                        tableState.gameState.phase === 'showdown';
-      
-      console.log(`Game status: ${serverStatus}, Phase: ${tableState.gameState.phase}, isPlaying: ${isPlaying}`);
-      
-      // Make a copy of the updated state to log it
-      const updatedState = {
-        status: isPlaying ? 'playing' : serverStatus,
-        phase: tableState.gameState.phase || 'preflop',
-        dealer: tableState.gameState.dealer !== undefined ? tableState.gameState.dealer : 0,
-        activePlayer: tableState.gameState.currentPlayer !== undefined ? 
-          (tableState.gameState.currentPlayer === null ? -1 : tableState.gameState.currentPlayer) 
-          : -1,
-        pot: tableState.gameState.pot || 0,
-        smallBlind: tableState.gameState.smallBlind || 10,
-        bigBlind: tableState.gameState.bigBlind || 20,
-        userCards: userCards.length > 0 ? userCards : [] as Card[],
-        gameId: (tableState.gameState as any).gameId || ''
-      };
-      
-      console.log('Updated game state to be set:', updatedState);
-      
-      // Ensure strict types for the GameState interface
+      // Create a properly typed updated state
+      const updatedState = tableState.gameState;
       const typedUpdatedState: GameState = {
         status: updatedState.status,
-        phase: updatedState.phase,
+        phase: updatedState.phase || 'preflop',
         dealer: updatedState.dealer,
         activePlayer: updatedState.activePlayer,
         pot: updatedState.pot,
@@ -157,6 +126,17 @@ export default function Home() {
       
       // Set the state with the properly typed object
       setGameState(typedUpdatedState);
+
+      // Make sure to update localStorage with the players data for proper rendering
+      if (tableState.players && tableState.players.length > 0) {
+        // Save player data to localStorage to ensure cards are visible
+        try {
+          localStorage.setItem('pokerPlayers', JSON.stringify(tableState.players));
+          console.log('Updated localStorage with player data from tableState');
+        } catch (e) {
+          console.error('Failed to save player data to localStorage:', e);
+        }
+      }
     }
   }, [tableState, playerPosition]);
   
@@ -231,7 +211,18 @@ export default function Home() {
         if (savedPlayers) {
           const parsedPlayers = JSON.parse(savedPlayers);
           if (parsedPlayers[playerPosition]?.hand?.length > 0) {
-            const userCards = parsedPlayers[playerPosition].hand;
+            // Get the user's cards and ensure they have fileName property
+            const userCards = parsedPlayers[playerPosition].hand.map((card: any) => {
+              // If card is missing fileName property, generate it from value and suit
+              if (!card.fileName && card.value && card.suit) {
+                return {
+                  ...card,
+                  fileName: `${card.value}${card.suit.toLowerCase()}`
+                };
+              }
+              return card;
+            });
+            
             console.log("Setting user cards from localStorage:", userCards);
             
             // Update the game state with the user's cards
@@ -402,7 +393,7 @@ export default function Home() {
             />
           </div>
           <UserHand 
-            cards={gameState.userCards} 
+            cards={gameState.userCards || []} 
             folded={playerPosition !== undefined && gameState.status === 'playing' ? 
               localStorage.getItem('pokerPlayers') ? 
                 JSON.parse(localStorage.getItem('pokerPlayers')!)[playerPosition]?.folded : false 
