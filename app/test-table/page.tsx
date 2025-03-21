@@ -477,7 +477,7 @@ export default function TestTable() {
                     <div 
                       key={player.id} 
                       className={`flex items-center p-2 rounded ${
-                        player.id === socket?.id ? 'bg-blue-900' : 'bg-gray-700'
+                        player.id.toString() === socket?.id ? 'bg-blue-900' : 'bg-gray-700'
                       } ${!player.isActive ? 'opacity-50' : ''}`}
                     >
                       <div className="w-8 h-8 rounded-full overflow-hidden mr-2 relative">
