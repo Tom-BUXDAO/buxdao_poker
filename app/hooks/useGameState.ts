@@ -12,10 +12,13 @@ const emptyState: TableState = {
     status: 'waiting',
     phase: 'waiting',
     dealer: 0,
+    activePlayer: -1,
     smallBlind: 10,
     bigBlind: 20,
     currentPlayer: null,
     pot: 0,
+    userCards: [],
+    gameId: '',
     communityCards: [],
     currentBet: 0,
     winners: []
