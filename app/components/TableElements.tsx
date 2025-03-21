@@ -22,6 +22,21 @@ export const CommunityCards: React.FC<{ cards?: Card[] }> = ({ cards = [] }) => 
   );
 };
 
+// Helper function to get chip color based on amount
+export const getChipColorByAmount = (amount: number): string => {
+  // Standard casino chip colors for different denominations
+  if (amount >= 10000) return "bg-brown-600"; // Brown for $10,000
+  if (amount >= 5000) return "bg-orange-600"; // Orange for $5,000
+  if (amount >= 1000) return "bg-yellow-600"; // Yellow for $1,000
+  if (amount >= 500) return "bg-black"; // Black for $500
+  if (amount >= 200) return "bg-indigo-800"; // Indigo/Purple for $200
+  if (amount >= 100) return "bg-green-800"; // Green for $100
+  if (amount >= 50) return "bg-blue-800"; // Blue for $50
+  if (amount >= 20) return "bg-red-700"; // Red for $20
+  if (amount >= 12) return "bg-rose-800"; // Rose for $12
+  return "bg-gray-600"; // Gray for smaller amounts
+};
+
 // Poker Chip Component
 export const PokerChip: React.FC<{ amount: number; playerNumber: number }> = ({ amount, playerNumber }) => {
   // Position classes with all adjustments
@@ -36,21 +51,8 @@ export const PokerChip: React.FC<{ amount: number; playerNumber: number }> = ({ 
     8: "left-[30%] bottom-[calc(15%+180px)]", // Player 8 - moved up 180px
   };
   
-  // Determine chip color based on amount
-  let chipColor;
-  if (amount >= 500) {
-    chipColor = "bg-black"; // Black chip for high bets
-  } else if (amount >= 200) {
-    chipColor = "bg-green-800"; // Dark green for $200
-  } else if (amount >= 100) {
-    chipColor = "bg-green-800"; // Green for $100
-  } else if (amount >= 50) {
-    chipColor = "bg-blue-800"; // Blue for $50
-  } else if (amount >= 20) {
-    chipColor = "bg-red-700"; // Red for smaller amounts
-  } else {
-    chipColor = "bg-gray-700"; // Gray for smallest bets
-  }
+  // Get chip color based on amount using the helper function
+  const chipColor = getChipColorByAmount(amount);
   
   // For player 5, we need to reverse the order of chip and amount
   if (playerNumber === 5) {

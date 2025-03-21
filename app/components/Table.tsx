@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Player } from './Player';
-import { CommunityCards, PokerChip } from './TableElements';
+import { CommunityCards, PokerChip, getChipColorByAmount } from './TableElements';
 import { Card, Player as PlayerType, GameState } from '../types';
 import { useSocket } from '../context/SocketContext';
 
@@ -692,7 +692,7 @@ const Table: React.FC<TableProps> = ({
               
               <div className="flex items-center">
                 {/* Chip image exactly sized */}
-                <div className="bg-black rounded-full overflow-hidden w-8 h-8 shadow-md">
+                <div className={`${getChipColorByAmount(forceTableState?.gameState?.pot || gameState.pot || 0)} rounded-full overflow-hidden w-8 h-8 shadow-md`}>
                   <Image 
                     src="/poker-chip-thin.svg" 
                     alt="Chip" 
@@ -702,8 +702,8 @@ const Table: React.FC<TableProps> = ({
                   />
                 </div>
                 
-                {/* Pot amount in separate container */}
-                <div className="bg-black/70 text-yellow-400 font-bold text-sm ml-1 px-2 py-0.5 rounded-full shadow-md">
+                {/* Pot amount in separate container with larger text */}
+                <div className="bg-black/70 text-yellow-400 font-bold text-base ml-1 px-3 py-1 rounded-full shadow-md">
                   {forceTableState?.gameState?.pot || gameState.pot || 0}
                 </div>
               </div>
