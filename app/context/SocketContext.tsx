@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameState, Player, TableState } from '../types';
+import { GameState, Player, TableState, Card } from '../types';
 
 // Add flag to window to allow tracking of socket updates
 declare global {
@@ -245,9 +245,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         // Ensure player cards have fileName property
         if (Array.isArray(data.players)) {
-          data.players = data.players.map(player => {
+          data.players = data.players.map((player: Player) => {
             if (player.hand && player.hand.length > 0) {
-              player.hand = player.hand.map(card => {
+              player.hand = player.hand.map((card: Card) => {
                 if (!card.fileName && card.value && card.suit) {
                   // Generate fileName from value and suit
                   card.fileName = `${card.value}${card.suit.toLowerCase()}`;
@@ -259,7 +259,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
           
           console.log('Added fileName to cards for players:', 
-            data.players.filter(p => p.hand?.length > 0).length);
+            data.players.filter((p: Player) => p.hand?.length > 0).length);
         }
       }
       
