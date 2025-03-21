@@ -354,6 +354,10 @@ const Table: React.FC<TableProps> = ({
 
   // Dealer position checker
   const isDealer = (position: number) => {
+    // Only show dealer when game is in playing status
+    if (forceTableState?.gameState?.status === 'waiting' || (!forceTableState && gameState.status === 'waiting')) {
+      return false;
+    }
     return forceTableState?.gameState?.dealer === position || 
       (!forceTableState && gameState.dealer === position);
   };
@@ -384,9 +388,6 @@ const Table: React.FC<TableProps> = ({
             >
               Start Game
             </button>
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-white opacity-50">
-              {JSON.stringify(forceTableState?.gameState?.status || gameState.status)}
-            </div>
           </div>
         )}
         
@@ -397,13 +398,15 @@ const Table: React.FC<TableProps> = ({
           </div>
         )}
         
-        {/* Total Pot display */}
-        <div className="absolute top-1/2 left-[25%] transform -translate-y-1/2 -translate-x-1/2 z-10">
-          <div className="flex flex-col items-center">
-            <div className="text-lg font-bold text-white">TOTAL POT</div>
-            <TotalPot amount={forceTableState?.gameState?.pot || gameState.pot || 0} />
+        {/* Total Pot display - only show when game is playing */}
+        {(forceTableState?.gameState?.status === 'playing' || (!forceTableState && gameState.status === 'playing')) && (
+          <div className="absolute top-1/2 left-[25%] transform -translate-y-1/2 -translate-x-1/2 z-10">
+            <div className="flex flex-col items-center">
+              <div className="text-lg font-bold text-white">TOTAL POT</div>
+              <TotalPot amount={forceTableState?.gameState?.pot || gameState.pot || 0} />
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Center Community Cards */}
         <div className="community-cards absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
