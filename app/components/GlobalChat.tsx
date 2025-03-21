@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { useGameState } from '../hooks/useGameState';
 
 interface ChatMessage {
   type: 'chat' | 'system';
@@ -39,8 +40,9 @@ const GlobalChat: React.FC<{ playerName: string }> = ({ playerName }) => {
   const [showSystemMessages, setShowSystemMessages] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Get socket context
+  // Get socket context and game state (for messages)
   const { socket, sendMessage: socketSendMessage } = useSocket();
+  const { messages: gameStateMessages } = useGameState();
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -49,61 +51,145 @@ const GlobalChat: React.FC<{ playerName: string }> = ({ playerName }) => {
     }
   }, [messages]);
   
-  // Listen for new messages from Socket.io
+  // Process messages from gameState
+  useEffect(() => {
+    if (!gameStateMessages || gameStateMessages.length === 0) return;
+    
+    console.log('GlobalChat: Processing gameStateMessages:', gameStateMessages);
+    
+    // Create processed message objects with proper types
+    const processedMessages = gameStateMessages.map(msg => {
+      // Format the time
+      const time = new Date(msg.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      // Ensure the type is set correctly
+      let type = 'system';
+      if (msg.type === 'chat') {
+        type = 'chat';
+      }
+      
+      // Log each processed message for debugging
+      console.log('GlobalChat: Processing message:', { 
+        original: msg, 
+        type, 
+        time, 
+        message: msg.message 
+      });
+      
+      return {
+        type: type as 'chat' | 'system',
+        sender: msg.playerName,
+        message: msg.message,
+        time,
+        playerId: msg.playerId
+      };
+    });
+    
+    // Log the final processed messages
+    console.log('GlobalChat: Setting messages:', processedMessages);
+    
+    // Replace all messages with the processed ones
+    setMessages(processedMessages);
+    
+  }, [gameStateMessages]);
+  
+  // Listen for direct socket messages
   useEffect(() => {
     if (!socket) return;
     
+    console.log('GlobalChat: Setting up socket message listeners');
+    
     // Handler for new chat messages
-    const handleNewMessage = (data: { playerId: string; playerName: string; message: string; timestamp: string }) => {
-      console.log('Received chat message:', data);
-      const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const handleNewMessage = (data: { playerId: string; playerName: string; message: string; timestamp: string; type: string }) => {
+      console.log('GlobalChat: Received chat message directly:', data);
       
-      // Add to local messages
-      setMessages(prev => {
-        // Check for duplicate messages (can happen with socket reconnections)
-        const isDuplicate = prev.some(
-          msg => msg.type === 'chat' && 
-                msg.sender === data.playerName && 
-                msg.message === data.message
-        );
-        
-        if (isDuplicate) return prev;
-        
-        return [...prev, {
-          type: 'chat',
-          sender: data.playerName,
-          message: data.message,
-          time,
-          playerId: data.playerId
-        }];
+      const time = new Date(data.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
       });
-    };
-    
-    // Handler for system messages (assuming server emits these with 'systemMessage' event)
-    const handleSystemMessage = (data: { message: string; timestamp: string }) => {
-      console.log('Received system message:', data);
-      const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
-      setMessages(prev => [
-        ...prev, 
-        {
-          type: 'system',
-          message: data.message,
-          time
-        }
-      ]);
+      const newMessage: ChatMessage = {
+        type: 'chat',
+        sender: data.playerName,
+        message: data.message,
+        time,
+        playerId: data.playerId
+      };
+      
+      // Add message directly to state for immediate display
+      setMessages(prev => [...prev, newMessage]);
     };
     
-    // Subscribe to Socket.io events
+    // Handler for system messages
+    const handleSystemMessage = (data: { message: string; timestamp: string; type: string }) => {
+      console.log('GlobalChat: Received system message directly:', data);
+      
+      const time = new Date(data.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      const newMessage: ChatMessage = {
+        type: 'system',
+        message: data.message,
+        time
+      };
+      
+      // Add system message directly to state for immediate display
+      setMessages(prev => [...prev, newMessage]);
+    };
+    
+    // Handler for gameStarting event
+    const handleGameStarting = () => {
+      console.log('GlobalChat: Received gameStarting event directly');
+      
+      const time = new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      const newMessage: ChatMessage = {
+        type: 'system',
+        message: 'Game is starting...',
+        time
+      };
+      
+      // Add message directly to state for immediate display
+      setMessages(prev => [...prev, newMessage]);
+    };
+    
+    // Subscribe to message events
     socket.on('newMessage', handleNewMessage);
     socket.on('systemMessage', handleSystemMessage);
+    socket.on('gameStarting', handleGameStarting);
     
-    // Cleanup
+    // Clean up event listeners
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('systemMessage', handleSystemMessage);
+      socket.off('gameStarting', handleGameStarting);
     };
   }, [socket]);
+  
+  // Debug gameStateMessages to see if we're receiving any
+  useEffect(() => {
+    console.log('GlobalChat: gameStateMessages received:', gameStateMessages);
+  }, [gameStateMessages]);
+  
+  // Debug logging of incoming messages
+  useEffect(() => {
+    if (gameStateMessages && gameStateMessages.length > 0) {
+      console.log('GlobalChat: Received messages:', {
+        count: gameStateMessages.length,
+        types: gameStateMessages.map(m => m.type || 'unknown').join(', '),
+        firstMsg: gameStateMessages[0],
+        lastMsg: gameStateMessages[gameStateMessages.length - 1]
+      });
+    }
+  }, [gameStateMessages]);
   
   // Handle sending a chat message
   const handleSendMessage = (e: React.FormEvent) => {
@@ -112,15 +198,6 @@ const GlobalChat: React.FC<{ playerName: string }> = ({ playerName }) => {
     if (inputMessage.trim()) {
       const now = new Date();
       const timeString = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
-      // Add message to local state
-      setMessages(prev => [...prev, {
-        type: 'chat',
-        sender: playerName,
-        message: inputMessage.trim(),
-        time: timeString,
-        playerId: socket?.id
-      }]);
       
       // Send message via Socket.io if connected
       if (socket && socket.connected) {
@@ -137,6 +214,30 @@ const GlobalChat: React.FC<{ playerName: string }> = ({ playerName }) => {
     if (msg.type === 'system' && !showSystemMessages) return false;
     return true;
   });
+  
+  // Debug logging of filtered messages
+  useEffect(() => {
+    console.log('GlobalChat: Messages state:', {
+      total: messages.length,
+      filtered: filteredMessages.length,
+      showChat: showChatMessages,
+      showSystem: showSystemMessages,
+      systemCount: messages.filter(m => m.type === 'system').length,
+      chatCount: messages.filter(m => m.type === 'chat').length,
+      firstMessages: messages.slice(0, 3),
+      recentMessages: messages.slice(-3),
+    });
+  }, [messages, filteredMessages, showChatMessages, showSystemMessages]);
+  
+  // Force toggle switches to be on by default for debugging
+  useEffect(() => {
+    if (!showChatMessages) {
+      setShowChatMessages(true);
+    }
+    if (!showSystemMessages) {
+      setShowSystemMessages(true);
+    }
+  }, [showChatMessages, showSystemMessages]);
   
   return (
     <div className="bg-gray-800 rounded-lg shadow-lg flex flex-col h-full">
