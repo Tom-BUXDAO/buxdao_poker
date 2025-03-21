@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { GameState, Player, TableState } from '../types';
 
 // Add flag to window to allow tracking of socket updates
 declare global {
@@ -211,7 +212,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (data.gameState.status === 'playing') {
         // Check for player cards
         const playerCardDiagnostics = Array.isArray(data.players) 
-          ? data.players.map(p => ({
+          ? data.players.map((p: Player) => ({
               position: p.position,
               name: p.name,
               hasCards: p.hand?.length > 0,
