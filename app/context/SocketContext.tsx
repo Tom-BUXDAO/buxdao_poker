@@ -185,7 +185,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Listen for game state updates - but don't update state here
     // Just log them - the useGameState hook will handle this data
     socketInstance.on('gameStarting', () => {
-      console.log('Game is starting!');
+      console.log('Game is starting! (SocketContext)');
+      
+      // Emit a custom window event that other components can listen for
+      try {
+        if (typeof window !== 'undefined') {
+          const gameStartEvent = new CustomEvent('poker-game-starting', {
+            detail: { timestamp: new Date().toISOString() }
+          });
+          window.dispatchEvent(gameStartEvent);
+          console.log('Dispatched poker-game-starting event to window');
+        }
+      } catch (error) {
+        console.error('Error dispatching game starting event:', error);
+      }
     });
 
     socketInstance.on('tableState', (data) => {
@@ -276,17 +289,46 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Start the game
   const startGame = useCallback(() => {
-    if (socketRef.current && isConnectedRef.current) {
-      console.log('Emitting startGame event');
-      socketRef.current.emit('startGame', {}, (response: any) => {
-        // Optional: handle acknowledgment if the server supports it
-        console.log('Start game acknowledgment:', response);
-      });
-    } else {
-      console.error('Cannot start game: Socket not connected');
-      batchUpdate({ error: 'Cannot start game: Socket not connected' });
+    console.log('SocketContext: Emitting startGame event');
+    
+    if (!socket) {
+      console.error('Cannot start game: Socket is null');
+      return;
     }
-  }, [batchUpdate]);
+    
+    if (!socket.connected) {
+      console.error('Cannot start game: Socket not connected, attempting to reconnect');
+      // Try to reconnect
+      socket.connect();
+      
+      // Set a timeout to try again
+      setTimeout(() => {
+        if (socket.connected) {
+          console.log('Reconnected successfully, sending startGame');
+          socket.emit('startGame', {}, (response: any) => {
+            console.log('startGame acknowledgement:', response);
+          });
+        } else {
+          console.error('Failed to reconnect socket after attempt');
+        }
+      }, 500);
+      return;
+    }
+    
+    // Socket is connected, send the event
+    try {
+      socket.emit('startGame', {}, (response: any) => {
+        console.log('startGame acknowledgement:', response);
+        if (response && response.success) {
+          console.log('Game start confirmed by server');
+        } else if (response && response.error) {
+          console.error('Server rejected game start:', response.error);
+        }
+      });
+    } catch (err) {
+      console.error('Error emitting startGame event:', err);
+    }
+  }, [socket]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = React.useMemo(() => ({

@@ -6,13 +6,7 @@ import { useGameState } from '../hooks/useGameState';
 import Link from 'next/link';
 import Image from 'next/image';
 import GlobalChat from '../components/GlobalChat';
-
-// Define card types
-interface Card {
-  value: string;
-  suit: string;
-  fileName: string;
-}
+import { Card } from '../types';
 
 // Memoize static components
 const PlayerOption = memo(({ number, name, avatar }: { number: string; name: string; avatar: string }) => (
@@ -179,6 +173,29 @@ export default function TestTable() {
     [tableState.gameState.phase]
   );
 
+  // Listen for game starting window events
+  useEffect(() => {
+    const handleGameStarting = (event: any) => {
+      console.log('Test table: Detected game starting event', event.detail);
+      
+      // Force a refresh of the table state
+      if (isConnected && socket) {
+        console.log('Test table: Requesting fresh table state after game start');
+        
+        // Request the latest table state
+        socket.emit('getTableState');
+      }
+    };
+    
+    // Add listener for the custom event
+    window.addEventListener('poker-game-starting', handleGameStarting);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('poker-game-starting', handleGameStarting);
+    };
+  }, [isConnected, socket]);
+
   return (
     <div className="min-h-screen p-4 bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto">
@@ -276,7 +293,11 @@ export default function TestTable() {
                 {/* Start game button */}
                 {tableState.gameState.status === 'waiting' && (
                   <button
-                    onClick={startGame}
+                    onClick={() => {
+                      console.log('Test Table: Sending startGame command');
+                      startGame();
+                      console.log('Test Table: startGame command sent');
+                    }}
                     className="px-4 py-2 bg-green-600 rounded hover:bg-green-700 w-full"
                   >
                     Start Game

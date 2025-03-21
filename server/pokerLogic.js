@@ -4,6 +4,14 @@
 
 const { findBestHand, compareHands } = require('./cardUtils');
 
+// For system messages - will be injected
+let emitSystemMessage;
+
+// Function to set the emitSystemMessage function from server
+function setSystemMessageFunction(fn) {
+  emitSystemMessage = fn;
+}
+
 // Card suits and values
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -304,6 +312,7 @@ function processPlayerAction(table, playerId, action, amount = 0) {
  */
 function advanceGamePhase(table) {
   const { gameState } = table;
+  const tableId = table.id;
   
   // Reset bets for the next round
   for (const player of table.players) {
@@ -318,6 +327,11 @@ function advanceGamePhase(table) {
       const flopResult = dealCommunityCards(gameState.deck, 3);
       gameState.deck = flopResult.deck;
       gameState.communityCards = flopResult.communityCards;
+      
+      // Emit system message for the flop
+      if (emitSystemMessage) {
+        emitSystemMessage(tableId, 'Dealer: Dealing the flop');
+      }
       break;
       
     case 'flop':
@@ -325,6 +339,11 @@ function advanceGamePhase(table) {
       const turnResult = dealCommunityCards(gameState.deck, 1, gameState.communityCards);
       gameState.deck = turnResult.deck;
       gameState.communityCards = turnResult.communityCards;
+      
+      // Emit system message for the turn
+      if (emitSystemMessage) {
+        emitSystemMessage(tableId, 'Dealer: Dealing the turn');
+      }
       break;
       
     case 'turn':
@@ -332,6 +351,11 @@ function advanceGamePhase(table) {
       const riverResult = dealCommunityCards(gameState.deck, 1, gameState.communityCards);
       gameState.deck = riverResult.deck;
       gameState.communityCards = riverResult.communityCards;
+      
+      // Emit system message for the river
+      if (emitSystemMessage) {
+        emitSystemMessage(tableId, 'Dealer: Dealing the river');
+      }
       break;
       
     case 'river':
@@ -339,12 +363,27 @@ function advanceGamePhase(table) {
       const winners = determineWinners(table.players, gameState.communityCards);
       gameState.winners = winners;
       
+      // Emit system message for showdown
+      if (emitSystemMessage) {
+        if (winners.length === 1) {
+          emitSystemMessage(tableId, `Showdown: ${winners[0].name} wins with ${winners[0].handRank}`);
+        } else if (winners.length > 1) {
+          const winnerNames = winners.map(w => w.name).join(', ');
+          emitSystemMessage(tableId, `Showdown: Split pot! Winners: ${winnerNames} with ${winners[0].handRank}`);
+        }
+      }
+      
       // Distribute pot to winners
       const winAmount = Math.floor(gameState.pot / winners.length);
       for (const winner of winners) {
         const winnerPlayer = table.players.find(p => p.id === winner.id);
         if (winnerPlayer) {
           winnerPlayer.chips += winAmount;
+          
+          // Emit system message for each winner's payout
+          if (emitSystemMessage) {
+            emitSystemMessage(tableId, `${winner.name} wins $${winAmount}`);
+          }
         }
       }
       
@@ -402,11 +441,17 @@ function resetGameState(table) {
  */
 function startNewHand(table) {
   const { gameState } = table;
+  const tableId = table.id;
   
   // Only start if we have at least 2 active players
   const activePlayers = table.players.filter(p => p.isActive);
   if (activePlayers.length < 2) {
     throw new Error('Need at least 2 active players to start a game');
+  }
+  
+  // Emit system message for new hand
+  if (emitSystemMessage) {
+    emitSystemMessage(tableId, 'Starting a new hand');
   }
   
   // Reset game state
@@ -430,9 +475,24 @@ function startNewHand(table) {
   const dealResult = dealCards(gameState.deck, table.players);
   gameState.deck = dealResult.deck;
   
+  // Emit system message for dealing cards
+  if (emitSystemMessage) {
+    emitSystemMessage(tableId, 'Dealer: Cards dealt to all players');
+  }
+  
   // Set small and big blind positions
   const smallBlindPos = (gameState.dealer + 1) % table.players.length;
   const bigBlindPos = (gameState.dealer + 2) % table.players.length;
+  
+  // Get player names for messages
+  const dealerName = table.players[gameState.dealer].name;
+  const smallBlindPlayerName = table.players[smallBlindPos].name;
+  const bigBlindPlayerName = table.players[bigBlindPos].name;
+  
+  // Emit system message for dealer button
+  if (emitSystemMessage) {
+    emitSystemMessage(tableId, `Dealer button at ${dealerName}`);
+  }
   
   // Post blinds
   const smallBlindPlayer = table.players[smallBlindPos];
@@ -444,10 +504,20 @@ function startNewHand(table) {
     smallBlindPlayer.bet = smallBlindPlayer.chips;
     smallBlindPlayer.chips = 0;
     smallBlindPlayer.allIn = true;
+    
+    // Emit system message for small blind all-in
+    if (emitSystemMessage) {
+      emitSystemMessage(tableId, `${smallBlindPlayerName} posts small blind and is ALL IN with $${smallBlindPlayer.bet}`);
+    }
   } else {
     gameState.pot += gameState.smallBlind;
     smallBlindPlayer.bet = gameState.smallBlind;
     smallBlindPlayer.chips -= gameState.smallBlind;
+    
+    // Emit system message for small blind
+    if (emitSystemMessage) {
+      emitSystemMessage(tableId, `${smallBlindPlayerName} posts small blind: $${gameState.smallBlind}`);
+    }
   }
   
   if (bigBlindPlayer.chips <= gameState.bigBlind) {
@@ -456,10 +526,20 @@ function startNewHand(table) {
     bigBlindPlayer.bet = bigBlindPlayer.chips;
     bigBlindPlayer.chips = 0;
     bigBlindPlayer.allIn = true;
+    
+    // Emit system message for big blind all-in
+    if (emitSystemMessage) {
+      emitSystemMessage(tableId, `${bigBlindPlayerName} posts big blind and is ALL IN with $${bigBlindPlayer.bet}`);
+    }
   } else {
     gameState.pot += gameState.bigBlind;
     bigBlindPlayer.bet = gameState.bigBlind;
     bigBlindPlayer.chips -= gameState.bigBlind;
+    
+    // Emit system message for big blind
+    if (emitSystemMessage) {
+      emitSystemMessage(tableId, `${bigBlindPlayerName} posts big blind: $${gameState.bigBlind}`);
+    }
   }
   
   // Set current bet to big blind
@@ -467,6 +547,12 @@ function startNewHand(table) {
   
   // First player to act is after the big blind
   gameState.currentPlayer = (bigBlindPos + 1) % table.players.length;
+  
+  // Emit system message for first player to act
+  if (emitSystemMessage && gameState.currentPlayer !== null) {
+    const firstToActName = table.players[gameState.currentPlayer].name;
+    emitSystemMessage(tableId, `Action to ${firstToActName}`);
+  }
   
   // Set phase to preflop
   gameState.phase = 'preflop';
@@ -488,5 +574,6 @@ module.exports = {
   processPlayerAction,
   advanceGamePhase,
   resetGameState,
-  startNewHand
+  startNewHand,
+  setSystemMessageFunction
 }; 

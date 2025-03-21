@@ -23,6 +23,11 @@ const io = new Server(server, {
   }
 });
 
+// Pass the system message function to the poker logic module
+pokerLogic.setSystemMessageFunction((tableId, message) => {
+  emitSystemMessage(tableId, message);
+});
+
 // Game state management
 const tables = new Map();
 const players = new Map();
@@ -34,6 +39,7 @@ tables.set(TEST_TABLE_ID, {
   name: 'Test Table',
   maxPlayers: 8,
   players: [],
+  messageHistory: [], // Initialize message history array
   gameState: {
     status: 'waiting', // waiting, starting, playing, ended
     phase: 'waiting', // waiting, preflop, flop, turn, river, showdown
@@ -86,6 +92,10 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Create player object
+    let player;
+    let isNewPlayer = true;
+    
     // For test table with player numbers, handle specially
     if (tableId === TEST_TABLE_ID && playerNumber) {
       // Find if this test player already exists at the table
@@ -106,6 +116,7 @@ io.on('connection', (socket) => {
         // Keep the same position, just update the socket ID
         position = existingPlayerIndex;
         table.players.splice(existingPlayerIndex, 1);
+        isNewPlayer = false; // This is a reconnection, not a new player
       } else {
         // Find the predefined test player data
         const testPlayer = TEST_PLAYERS.find(p => p.playerNumber === playerNumber);
@@ -122,7 +133,7 @@ io.on('connection', (socket) => {
       }
 
       // Create player object
-      const player = {
+      player = {
         id: socket.id,
         name: playerName,
         avatar: avatar,
@@ -142,45 +153,54 @@ io.on('connection', (socket) => {
         tableId,
         player
       });
+    } else {
+      // For regular tables, check if the table is full
+      if (table.players.length >= table.maxPlayers) {
+        socket.emit('error', { message: 'Table is full' });
+        return;
+      }
 
-      // Join the socket room for this table
-      socket.join(tableId);
+      // Create player object for regular tables
+      player = {
+        id: socket.id,
+        name: playerName,
+        avatar: avatar,
+        chips: chips,
+        position: table.players.length,
+        hand: [],
+        bet: 0,
+        folded: false,
+        allIn: false,
+        isActive: true
+      };
 
-      // Send updated table state to all players at the table
-      emitTableState(tableId);
-      
-      return; // Return early as we've handled the test player case
+      // Add player to table and global players map
+      table.players.push(player);
+      players.set(socket.id, {
+        tableId,
+        player
+      });
     }
-
-    // For regular tables, check if the table is full
-    if (table.players.length >= table.maxPlayers) {
-      socket.emit('error', { message: 'Table is full' });
-      return;
-    }
-
-    // Create player object for regular tables
-    const player = {
-      id: socket.id,
-      name: playerName,
-      avatar: avatar,
-      chips: chips,
-      position: table.players.length,
-      hand: [],
-      bet: 0,
-      folded: false,
-      allIn: false,
-      isActive: true
-    };
-
-    // Add player to table and global players map
-    table.players.push(player);
-    players.set(socket.id, {
-      tableId,
-      player
-    });
 
     // Join the socket room for this table
     socket.join(tableId);
+    
+    // Add a system message for new player joining (only if they're actually new)
+    if (isNewPlayer) {
+      const joinMessage = {
+        message: `${playerName} joined the table`,
+        timestamp: new Date().toISOString(),
+        type: 'system'
+      };
+      
+      if (!table.messageHistory) {
+        table.messageHistory = [];
+      }
+      table.messageHistory.push(joinMessage);
+      
+      // Broadcast the join message to all players at the table
+      io.to(tableId).emit('systemMessage', joinMessage);
+    }
 
     // Send updated table state to all players at the table
     emitTableState(tableId);
@@ -241,10 +261,29 @@ io.on('connection', (socket) => {
 
     console.log(`Starting game on table ${tableId}, initiated by ${player.name} (${socket.id})`);
 
-    // Start the game
+    // Set table status immediately
     table.gameState.status = 'starting';
     
+    // Create a clear system message about game starting
+    const gameStartMessage = {
+      message: `Game started by ${player.name}`,
+      timestamp: new Date().toISOString(),
+      type: 'system'
+    };
+    
+    // Add directly to message history
+    if (!table.messageHistory) {
+      table.messageHistory = [];
+    }
+    table.messageHistory.push(gameStartMessage);
+    
+    // Broadcast to all clients at the table
+    io.to(tableId).emit('systemMessage', gameStartMessage);
     io.to(tableId).emit('gameStarting');
+    
+    // Emit table state with updated message history to all clients
+    emitTableState(tableId);
+    
     if (callback) callback({ success: true });
 
     // Short delay before dealing cards
@@ -253,9 +292,30 @@ io.on('connection', (socket) => {
         // Start a new hand
         pokerLogic.startNewHand(table);
         
+        // Add another system message for hand dealt
+        const handDealtMessage = {
+          message: "A new hand has been dealt!",
+          timestamp: new Date().toISOString(),
+          type: 'system'
+        };
+        
+        // Add to message history
+        table.messageHistory.push(handDealtMessage);
+        
+        // Send message to all clients
+        io.to(tableId).emit('systemMessage', handDealtMessage);
+        
         // Emit updated state to all players
         emitTableState(tableId);
+        
         console.log(`New hand started on table ${tableId}`);
+        
+        // Force all clients to refresh their state (needed for reliable synchronization)
+        setTimeout(() => {
+          console.log(`Forcing table state refresh to all clients`);
+          io.to(tableId).emit('refreshTableState');
+        }, 500);
+        
       } catch (error) {
         console.error(`Error starting new hand on table ${tableId}:`, error);
         table.gameState.status = 'waiting';
@@ -283,6 +343,49 @@ io.on('connection', (socket) => {
     try {
       // Process the player's action
       pokerLogic.processPlayerAction(table, socket.id, action, amount);
+      
+      // Construct action message
+      const playerName = player.name;
+      let actionMessage = '';
+      
+      switch(action) {
+        case 'fold':
+          actionMessage = `${playerName} folded`;
+          break;
+        case 'check':
+          actionMessage = `${playerName} checked`;
+          break;
+        case 'call':
+          actionMessage = `${playerName} called $${amount}`;
+          break;
+        case 'raise':
+          actionMessage = `${playerName} raised to $${amount}`;
+          break;
+        case 'bet':
+          actionMessage = `${playerName} bet $${amount}`;
+          break;
+        case 'allIn':
+          actionMessage = `${playerName} went ALL IN with $${amount}`;
+          break;
+        default:
+          actionMessage = `${playerName} took action: ${action}`;
+      }
+      
+      // Create system message for this action
+      const systemMessage = {
+        message: actionMessage,
+        timestamp: new Date().toISOString(),
+        type: 'system'
+      };
+      
+      // Add to message history
+      if (!table.messageHistory) {
+        table.messageHistory = [];
+      }
+      table.messageHistory.push(systemMessage);
+      
+      // Send the message to all clients
+      io.to(tableId).emit('systemMessage', systemMessage);
       
       // Emit updated state to all players
       emitTableState(tableId);
@@ -332,13 +435,34 @@ io.on('connection', (socket) => {
     if (!playerData) return;
 
     const { tableId, player } = playerData;
+    const timestamp = new Date().toISOString();
     
-    io.to(tableId).emit('newMessage', {
+    const messageData = {
       playerId: socket.id,
       playerName: player.name,
       message,
-      timestamp: new Date().toISOString()
-    });
+      timestamp,
+      type: 'chat'
+    };
+    
+    // Emit to all clients at the table
+    io.to(tableId).emit('newMessage', messageData);
+    
+    // Save to table message history
+    const table = tables.get(tableId);
+    if (table) {
+      if (!table.messageHistory) {
+        table.messageHistory = [];
+      }
+      
+      // Add to message history
+      table.messageHistory.push(messageData);
+      
+      // Keep only the latest 50 messages
+      if (table.messageHistory.length > 50) {
+        table.messageHistory = table.messageHistory.slice(-50);
+      }
+    }
   });
 
   // Handle disconnection
@@ -363,6 +487,22 @@ io.on('connection', (socket) => {
     io.to(tableId).emit('playerDisconnected', { playerId: socket.id });
     
     // Update table state for remaining players
+    emitTableState(tableId);
+  });
+
+  // Handle direct requests for table state
+  socket.on('getTableState', () => {
+    console.log(`Received getTableState request from ${socket.id}`);
+    
+    const playerData = players.get(socket.id);
+    if (!playerData) {
+      console.log(`Player not found for socket ${socket.id}`);
+      return;
+    }
+
+    const { tableId } = playerData;
+    
+    // Emit the latest table state to this client
     emitTableState(tableId);
   });
 });
@@ -416,10 +556,73 @@ function emitTableState(tableId) {
           }))
         },
         isYourTurn: table.gameState.currentPlayer !== null && 
-                   table.players[table.gameState.currentPlayer]?.id === player.id
+                   table.players[table.gameState.currentPlayer]?.id === player.id,
+        // Include the table's message history
+        messageHistory: table.messageHistory || []
       });
     }
   });
+}
+
+// Helper function to emit system messages to all players at a table
+function emitSystemMessage(tableId, message) {
+  if (!tableId || !message) return;
+
+  console.log(`Sending system message to table ${tableId}: "${message}"`);
+  
+  const timestamp = new Date().toISOString();
+  
+  // Emit the system message with explicit type field
+  io.to(tableId).emit('systemMessage', {
+    message,
+    timestamp,
+    type: 'system'  // Explicitly set the type
+  });
+  
+  // Also save this message to the table's message history for new clients
+  const table = tables.get(tableId);
+  if (table) {
+    if (!table.messageHistory) {
+      table.messageHistory = [];
+    }
+    
+    // Add to message history
+    table.messageHistory.push({
+      message,
+      timestamp,
+      type: 'system'
+    });
+    
+    // Keep only the latest 50 messages
+    if (table.messageHistory.length > 50) {
+      table.messageHistory = table.messageHistory.slice(-50);
+    }
+  }
+}
+
+// Helper function to broadcast game starting to all players
+function broadcastGameStarting(tableId, initiatorName) {
+  if (!tableId) return;
+  
+  console.log(`Broadcasting gameStarting to all players at table ${tableId}`);
+  
+  // First emit the gameStarting event to all clients
+  io.to(tableId).emit('gameStarting');
+  
+  // Then send a system message about who started the game
+  emitSystemMessage(tableId, `Game started by ${initiatorName}`);
+  
+  // Update the table status in our data structure
+  const table = tables.get(tableId);
+  if (table) {
+    table.gameState.status = 'starting';
+    
+    // Ask all clients to request a fresh table state
+    setTimeout(() => {
+      console.log(`Prompting clients to refresh table state`);
+      io.to(tableId).emit('refreshTableState');
+    }, 500);
+  }
 }
 
 // API Endpoints

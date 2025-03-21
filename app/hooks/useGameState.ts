@@ -2,47 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
-
-// Types
-interface PlayerState {
-  id: string;
-  name: string;
-  avatar: string;
-  chips: number;
-  position: number;
-  bet: number;
-  folded: boolean;
-  allIn: boolean;
-  isActive: boolean;
-  hand: Card[];
-}
-
-interface Card {
-  suit: string;
-  value: string;
-  code: string;
-  fileName: string;
-}
-
-interface GameState {
-  status: 'waiting' | 'starting' | 'playing' | 'ended';
-  phase: 'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown';
-  dealer: number;
-  smallBlind: number;
-  bigBlind: number;
-  currentPlayer: number | null;
-  pot: number;
-  communityCards: Card[];
-  currentBet: number;
-  winners: any[];
-}
-
-interface TableState {
-  tableId: string;
-  players: PlayerState[];
-  gameState: GameState;
-  isYourTurn: boolean;
-}
+import { Card, Player as PlayerState, GameState, TableState, ChatMessage } from '../types';
 
 // Default empty state
 const emptyState: TableState = {
@@ -63,6 +23,14 @@ const emptyState: TableState = {
   isYourTurn: false
 };
 
+// Define a type for our messages that includes both regular and system messages
+interface GameMessage {
+  playerName?: string;
+  type?: 'chat' | 'system';
+  message: string;
+  timestamp: string;
+}
+
 export function useGameState() {
   const { socket } = useSocket();
   
@@ -70,7 +38,7 @@ export function useGameState() {
   const [state, setState] = useState({
     tableState: emptyState,
     tables: [] as { id: string; name: string; playerCount: number; maxPlayers: number; status: string }[],
-    messages: [] as { playerName: string; message: string; timestamp: string }[],
+    messages: [] as GameMessage[],
     actionResult: null as { action: string; amount?: number } | null,
     error: null as string | null
   });
@@ -98,52 +66,36 @@ export function useGameState() {
       ...updates
     };
     
-    // If we're already in an update cycle or there's a pending update, don't schedule another
-    if (isUpdatingRef.current || updateTimeoutRef.current) {
-      return;
-    }
-    
-    // Implement throttling - don't update more than once every 50ms
-    const now = Date.now();
-    const timeUntilNextUpdate = Math.max(0, 50 - (now - lastUpdateTimeRef.current));
-    
-    // Schedule the update with appropriate timing
-    updateTimeoutRef.current = setTimeout(() => {
-      // Set the lock to prevent nested updates
-      isUpdatingRef.current = true;
-      
-      // Update the state with all pending updates
-      setState(current => {
-        const newState = {
-          ...current,
-          ...pendingUpdatesRef.current
-        };
+    // Only schedule an update if one isn't already scheduled
+    if (!updateTimeoutRef.current && !isUpdatingRef.current) {
+      // Schedule update with slight delay for batching
+      updateTimeoutRef.current = setTimeout(() => {
+        // Set updating flag
+        isUpdatingRef.current = true;
         
-        // Update the ref immediately to avoid stale closures
-        stateRef.current = newState;
+        // Apply updates
+        setState(currentState => {
+          const newState = {
+            ...currentState,
+            ...pendingUpdatesRef.current
+          };
+          
+          // Update ref to new state
+          stateRef.current = newState;
+          
+          return newState;
+        });
         
-        // Clear pending updates
+        // Clear pending updates and timeout ref
         pendingUpdatesRef.current = {};
+        updateTimeoutRef.current = null;
         
-        return newState;
-      });
-      
-      // Clear the timeout ref
-      updateTimeoutRef.current = null;
-      
-      // Track when the last update occurred
-      lastUpdateTimeRef.current = Date.now();
-      
-      // Release the update lock after a short delay to ensure React has processed the state update
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-        
-        // If more updates accumulated during this update, process them
-        if (Object.keys(pendingUpdatesRef.current).length > 0 && !updateTimeoutRef.current) {
-          batchUpdate({});  // Trigger processing of pending updates
-        }
+        // Reset updating flag after a small delay
+        setTimeout(() => {
+          isUpdatingRef.current = false;
+        }, 50);
       }, 50);
-    }, timeUntilNextUpdate);
+    }
   }, []);
 
   // Memoized clear error function
@@ -151,7 +103,7 @@ export function useGameState() {
     batchUpdate({ error: null });
   }, [batchUpdate]);
 
-  // Update socket ref when it changes
+  // Function to update socket ref when socket changes
   useEffect(() => {
     socketRef.current = socket;
   }, [socket]);
@@ -160,156 +112,113 @@ export function useGameState() {
   useEffect(() => {
     if (!socket) return;
 
-    console.log("useGameState: Setting up socket event listeners");
-    
-    // Track incoming events for debugging
-    let eventCount = 0;
-    const lastEventTime = {
-      tableState: 0,
-      tableList: 0,
-      newMessage: 0,
-      actionAcknowledged: 0,
-      error: 0
-    };
-    
-    // Define all event handlers inside to avoid dependency issues
-    const onTableState = (data: TableState) => {
-      eventCount++;
+    // Setup socket event listeners for game state
+    console.log('useGameState: Setting up socket event listeners');
+
+    // Listen for table state updates
+    socket.on('tableState', (data) => {
+      console.log('Received table state update:', data);
       
-      // Throttle tableState events - only process one every 100ms 
-      const now = Date.now();
-      if (now - lastEventTime.tableState < 100) {
-        console.log(`[${eventCount}] Throttling tableState event`);
-        return;
-      }
-      lastEventTime.tableState = now;
+      // Update table state
+      batchUpdate({ tableState: data });
       
-      // Quick shallow comparison of important fields
-      const currentState = stateRef.current.tableState;
-      
-      // Simple flag-based comparison for major differences
-      const hasMajorChanges = 
-        !currentState || 
-        data.tableId !== currentState.tableId ||
-        data.isYourTurn !== currentState.isYourTurn ||
-        data.gameState.status !== currentState.gameState.status ||
-        data.gameState.phase !== currentState.gameState.phase ||
-        data.gameState.pot !== currentState.gameState.pot ||
-        data.gameState.currentBet !== currentState.gameState.currentBet ||
-        data.gameState.currentPlayer !== currentState.gameState.currentPlayer ||
-        data.players.length !== currentState.players.length;
-      
-      // Only do complex comparisons if no major changes detected
-      let shouldUpdate = hasMajorChanges;
-      
-      // Check community cards (only if no major changes detected yet)
-      if (!shouldUpdate) {
-        const currCardsJSON = JSON.stringify(currentState.gameState.communityCards);
-        const newCardsJSON = JSON.stringify(data.gameState.communityCards);
-        shouldUpdate = currCardsJSON !== newCardsJSON;
-      }
-      
-      // Check players state (only if no major changes detected yet)
-      if (!shouldUpdate) {
-        // Only compare important player properties
-        const getPlayerEssentials = (p: PlayerState) => ({ 
-          id: p.id, 
-          chips: p.chips, 
-          bet: p.bet, 
-          folded: p.folded,
-          allIn: p.allIn,
-          isActive: p.isActive
+      // If we have message history in the table state, update our messages
+      if (data.messageHistory && Array.isArray(data.messageHistory)) {
+        console.log('Received message history with tableState:', {
+          count: data.messageHistory.length,
+          messages: data.messageHistory
         });
         
-        const currentPlayersJSON = JSON.stringify(currentState.players.map(getPlayerEssentials));
-        const newPlayersJSON = JSON.stringify(data.players.map(getPlayerEssentials));
-        shouldUpdate = currentPlayersJSON !== newPlayersJSON;
-      }
-      
-      if (shouldUpdate) {
-        console.log(`[${eventCount}] Processing tableState event:`, data.gameState.status);
+        // Clean timestamps to ensure proper handling
+        const sanitizedMessages = data.messageHistory.map((msg: GameMessage) => ({
+          ...msg,
+          timestamp: msg.timestamp || new Date().toISOString()
+        }));
         
-        // Batch the update
-        batchUpdate({ tableState: data });
+        // Import the message history
+        batchUpdate({ messages: sanitizedMessages });
       } else {
-        console.log(`[${eventCount}] Skipping tableState event - no significant changes`);
+        console.log('No message history in tableState');
       }
-    };
-
-    const onTableList = (data: any[]) => {
-      // Throttle tableList events
-      const now = Date.now();
-      if (now - lastEventTime.tableList < 100) return;
-      lastEventTime.tableList = now;
       
-      // Only update if the data is different
-      if (JSON.stringify(data) !== JSON.stringify(stateRef.current.tables)) {
-        batchUpdate({ tables: data });
-      }
-    };
-
-    const onNewMessage = (data: { playerName: string; message: string; timestamp: string }) => {
-      // Messages always need to be added
-      const newMessages = [...stateRef.current.messages, data];
-      batchUpdate({ messages: newMessages });
-    };
-
-    const onActionAcknowledged = (data: { action: string; amount?: number }) => {
-      // Throttle action acknowledgments
-      const now = Date.now();
-      if (now - lastEventTime.actionAcknowledged < 100) return;
-      lastEventTime.actionAcknowledged = now;
+      batchUpdate({ error: null });
+    });
+    
+    // Listen for refresh requests (server asking clients to request fresh state)
+    socket.on('refreshTableState', () => {
+      console.log('Received refresh table state request from server');
       
-      // Only update if action result changed
-      if (JSON.stringify(data) !== JSON.stringify(stateRef.current.actionResult)) {
-        batchUpdate({ actionResult: data });
+      // Clear any pending updates
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
       }
-    };
-
-    const onPlayerLeft = ({ playerId }: { playerId: string }) => {
-      console.log(`Player ${playerId} left the table`);
-      // No need to update state here, will be covered by table state update
-    };
-
-    const onPlayerDisconnected = ({ playerId }: { playerId: string }) => {
-      console.log(`Player ${playerId} disconnected`);
-      // No need to update state here, will be covered by table state update
-    };
-
-    const onError = (err: { message: string }) => {
-      // Throttle error events
-      const now = Date.now();
-      if (now - lastEventTime.error < 100) return;
-      lastEventTime.error = now;
       
-      if (err.message !== stateRef.current.error) {
-        batchUpdate({ error: err.message });
-      }
-    };
-
-    // Subscribe to events
-    socket.on('tableState', onTableState);
-    socket.on('tableList', onTableList);
-    socket.on('newMessage', onNewMessage);
-    socket.on('actionAcknowledged', onActionAcknowledged);
-    socket.on('playerLeft', onPlayerLeft);
-    socket.on('playerDisconnected', onPlayerDisconnected);
-    socket.on('error', onError);
-    socket.on('gameStarting', () => {
-      console.log('Game is starting!');
+      // Clear our local message cache first to prevent duplication
+      batchUpdate({ messages: [] });
+      
+      // Request a fresh table state with a small delay to ensure server is ready
+      setTimeout(() => {
+        if (socket && socket.connected) {
+          console.log('Requesting fresh table state');
+          socket.emit('getTableState');
+        }
+      }, 200);
     });
 
-    // Unsubscribe on cleanup
+    // Listen for new hand events
+    socket.on('newHand', (data) => {
+      console.log('New hand started:', data);
+    });
+
+    // Listen for system messages
+    socket.on('systemMessage', (data) => {
+      console.log('Received system message:', data);
+      
+      const timestamp = new Date(data.timestamp).toISOString();
+      batchUpdate({
+        messages: [...messages, {
+          type: 'system',
+          message: data.message,
+          timestamp
+        }]
+      });
+    });
+
+    // Listen for game starting events
+    socket.on('gameStarting', () => {
+      console.log('Game is starting!');
+      
+      const timestamp = new Date().toISOString();
+      batchUpdate({
+        messages: [...messages, {
+          type: 'system',
+          message: 'Game is starting...',
+          timestamp
+        }]
+      });
+      
+      // Request a fresh table state
+      if (socket && socket.connected) {
+        socket.emit('getTableState');
+      }
+    });
+    
+    // Listen for chat messages
+    socket.on('newMessage', (data) => {
+      console.log('Received chat message:', data);
+      batchUpdate({ messages: [...messages, data] });
+    });
+
+    // Clean up event listeners
     return () => {
-      console.log("useGameState: Cleaning up socket event listeners");
-      socket.off('tableState', onTableState);
-      socket.off('tableList', onTableList);
-      socket.off('newMessage', onNewMessage);
-      socket.off('actionAcknowledged', onActionAcknowledged);
-      socket.off('playerLeft', onPlayerLeft);
-      socket.off('playerDisconnected', onPlayerDisconnected);
-      socket.off('error', onError);
+      console.log('useGameState: Cleaning up socket event listeners');
+      socket.off('tableState');
+      socket.off('refreshTableState');
+      socket.off('newHand');
+      socket.off('systemMessage');
       socket.off('gameStarting');
+      socket.off('newMessage');
       
       // Clear any pending updates
       if (updateTimeoutRef.current) {
@@ -330,12 +239,67 @@ export function useGameState() {
     return () => clearTimeout(timer);
   }, [error, batchUpdate]); // Only depend on error and batchUpdate
 
+  // Handler for table state updates
+  const handleTableState = useCallback((data: any) => {
+    console.log('Received table state update:', data);
+    
+    // Update table state
+    batchUpdate({ tableState: data });
+    
+    // If we have message history in the table state, update our messages
+    if (data.messageHistory && Array.isArray(data.messageHistory)) {
+      batchUpdate({ messages: data.messageHistory });
+    }
+    
+    // Update game ID and phase
+    if (data.gameState) {
+      batchUpdate({
+        tableState: {
+          ...data.gameState,
+          status: data.gameState.status,
+          phase: data.gameState.phase
+        }
+      });
+    }
+    
+    batchUpdate({ error: null });
+  }, [batchUpdate]);
+
+  // Add system message to the messages state
+  const onSystemMessage = useCallback((message: any) => {
+    console.log('Adding system message:', message);
+    
+    // Add new message to state
+    batchUpdate({
+      messages: [...messages, {
+        ...message,
+        type: 'system'
+      }]
+    });
+  }, [batchUpdate, messages]);
+  
+  // Add chat message to the messages state
+  const onChatMessage = useCallback((message: any) => {
+    console.log('Adding chat message:', message);
+    
+    // Add new message to state
+    batchUpdate({
+      messages: [...messages, {
+        ...message,
+        type: 'chat'
+      }]
+    });
+  }, [batchUpdate, messages]);
+
   return {
     tableState,
     tables,
     messages,
     actionResult,
     error,
-    clearError
+    clearError,
+    handleTableState,
+    onSystemMessage,
+    onChatMessage
   };
 } 
