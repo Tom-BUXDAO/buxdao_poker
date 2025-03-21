@@ -135,7 +135,7 @@ export default function TestTable() {
 
   // Get current player's data - memoize this
   const currentPlayer = useMemo(() => 
-    tableState.players.find(player => socket && player.id === socket.id),
+    tableState.players.find(player => socket && player.id.toString() === socket.id),
     [tableState.players, socket]
   );
 
