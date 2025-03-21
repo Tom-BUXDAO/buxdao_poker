@@ -33,6 +33,9 @@ export interface GameState {
   pot: number;
   userCards: Card[];
   gameId: string;
+  communityCards?: Card[];
+  currentBet?: number;
+  winners?: any[];
 }
 
 // Chat message type
