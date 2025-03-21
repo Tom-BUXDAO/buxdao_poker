@@ -686,22 +686,26 @@ const Table: React.FC<TableProps> = ({
           {/* Total Pot display - only show when game is in progress and pot is greater than 0 */}
           {((forceTableState?.gameState?.status === 'playing' && forceTableState?.gameState?.pot > 0) || 
             (!forceTableState && gameState.status === 'playing' && gameState.pot > 0)) && (
-            <div className="bg-black/40 px-4 py-2 rounded-md text-base font-bold text-white text-center flex flex-col items-center">
-              <span className="text-yellow-400 mb-1">Total Pot</span>
+            <div className="flex flex-col items-center">
+              {/* TOTAL POT label on top */}
+              <span className="text-white text-xs font-bold uppercase mb-1">TOTAL POT</span>
+              
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2 flex items-center justify-center relative overflow-hidden">
+                {/* Chip image exactly sized */}
+                <div className="bg-black rounded-full overflow-hidden w-8 h-8 shadow-md">
                   <Image 
                     src="/poker-chip-thin.svg" 
                     alt="Chip" 
-                    width={16} 
-                    height={16} 
-                    className="absolute" 
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
+                    width={32} 
+                    height={32} 
+                    className="invert" // Make SVG white
                   />
                 </div>
-                <span className="text-xl">${forceTableState?.gameState?.pot || gameState.pot || 0}</span>
+                
+                {/* Pot amount in separate container */}
+                <div className="bg-black/70 text-yellow-400 font-bold text-sm ml-1 px-2 py-0.5 rounded-full shadow-md">
+                  {forceTableState?.gameState?.pot || gameState.pot || 0}
+                </div>
               </div>
             </div>
           )}
