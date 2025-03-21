@@ -125,10 +125,10 @@ export function useGameState() {
       
       // Process player cards to ensure fileName property
       if (data.players && Array.isArray(data.players)) {
-        data.players = data.players.map(player => {
+        data.players = data.players.map((player: PlayerState) => {
           if (player.hand && player.hand.length > 0) {
             // Process each card to ensure fileName property
-            player.hand = player.hand.map(card => {
+            player.hand = player.hand.map((card: Card) => {
               if (!card.fileName && card.value && card.suit) {
                 return {
                   ...card,
@@ -141,8 +141,8 @@ export function useGameState() {
           return player;
         });
         
-        console.log('Processed player cards:', 
-          data.players.filter(p => p.hand?.length > 0).length + ' players have cards');
+        console.log('Added fileName to player cards for ' + 
+          data.players.filter((p: PlayerState) => p.hand?.length > 0).length + ' players have cards');
       }
       
       // Update table state
