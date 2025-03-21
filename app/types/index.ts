@@ -19,6 +19,8 @@ export interface Player {
   isActive: boolean;
   folded: boolean;
   hand: Card[];
+  avatar: string;
+  allIn?: boolean;
 }
 
 // Game state interface
