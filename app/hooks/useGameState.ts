@@ -29,6 +29,7 @@ interface GameMessage {
   type?: 'chat' | 'system';
   message: string;
   timestamp: string;
+  playerId?: string;
 }
 
 export function useGameState() {

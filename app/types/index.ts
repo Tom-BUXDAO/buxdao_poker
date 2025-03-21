@@ -41,6 +41,7 @@ export interface ChatMessage {
   sender?: string;
   message: string;
   time: string;
+  playerId?: string;
 }
 
 // Table state type
