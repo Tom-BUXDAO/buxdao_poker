@@ -164,7 +164,7 @@ export default function TestTable() {
   // Get minimum raise amount - memoize this function
   const getMinimumRaiseAmount = useCallback(() => {
     const currentBet = tableState.gameState.currentBet;
-    return currentBet > 0 ? currentBet * 2 : tableState.gameState.bigBlind * 2;
+    return currentBet !== undefined && currentBet > 0 ? currentBet * 2 : tableState.gameState.bigBlind * 2;
   }, [tableState.gameState.currentBet, tableState.gameState.bigBlind]);
 
   // Check if the game is in showdown phase - memoize this
