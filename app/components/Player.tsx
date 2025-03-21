@@ -1,6 +1,4 @@
-'use client';
-
-import React from 'react';
+import React from "react";
 import Image from "next/image";
 import { FaceUpCard, FaceDownCard } from './Cards';
 
@@ -129,4 +127,4 @@ export const Player: React.FC<PlayerProps> = ({
   );
 };
 
-export default Player; 
+export default Player;
