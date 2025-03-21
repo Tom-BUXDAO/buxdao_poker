@@ -111,7 +111,7 @@ export default function TestTable() {
 
   // Set initial raise amount when showing raise input - use useEffect with proper dependencies
   useEffect(() => {
-    if (showRaiseInput && tableState.gameState.currentBet > 0) {
+    if (showRaiseInput && tableState.gameState.currentBet !== undefined && tableState.gameState.currentBet > 0) {
       safeSetState({ raiseAmount: tableState.gameState.currentBet * 2 });
     }
   }, [showRaiseInput, tableState.gameState.currentBet, safeSetState]);
