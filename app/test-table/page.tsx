@@ -404,11 +404,11 @@ export default function TestTable() {
                       <button
                         onClick={() => handleAction('check')}
                         className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-700"
-                        disabled={tableState.gameState.currentBet > 0 && currentPlayer?.bet !== tableState.gameState.currentBet}
+                        disabled={(tableState.gameState.currentBet !== undefined && tableState.gameState.currentBet > 0) && currentPlayer?.bet !== tableState.gameState.currentBet}
                       >
-                        {tableState.gameState.currentBet > 0 && currentPlayer?.bet !== tableState.gameState.currentBet ? "Can't Check" : "Check"}
+                        {(tableState.gameState.currentBet !== undefined && tableState.gameState.currentBet > 0) && currentPlayer?.bet !== tableState.gameState.currentBet ? "Can't Check" : "Check"}
                       </button>
-                      {tableState.gameState.currentBet > 0 && (
+                      {tableState.gameState.currentBet !== undefined && tableState.gameState.currentBet > 0 && (
                         <button
                           onClick={() => handleAction('call')}
                           className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
