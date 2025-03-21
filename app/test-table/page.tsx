@@ -499,7 +499,7 @@ export default function TestTable() {
                       <div className="flex-grow">
                         <div className="flex items-center">
                           <span>{player.name}</span>
-                          {player.id === socket?.id && <span className="ml-1 text-xs text-blue-300">(You)</span>}
+                          {player.id.toString() === socket?.id && <span className="ml-1 text-xs text-blue-300">(You)</span>}
                         </div>
                         <div className="text-xs flex flex-wrap gap-1">
                           <span className="text-yellow-400">${player.chips}</span>
