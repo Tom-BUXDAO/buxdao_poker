@@ -341,7 +341,7 @@ export default function TestTable() {
               <div className="mb-4 p-4 bg-gray-800 rounded-lg">
                 <h2 className="text-xl font-bold mb-2">Community Cards</h2>
                 <div className="flex gap-2 justify-center">
-                  {tableState.gameState.communityCards.length > 0 ? (
+                  {tableState.gameState.communityCards && tableState.gameState.communityCards.length > 0 ? (
                     tableState.gameState.communityCards.map((card, i) => (
                       <div key={i} className="w-16 h-24 bg-white rounded-md relative">
                         {card.fileName && (
