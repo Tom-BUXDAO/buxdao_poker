@@ -281,7 +281,7 @@ export default function TestTable() {
                   <div>Small Blind: <span className="font-semibold">${tableState.gameState.smallBlind}</span></div>
                   <div>Big Blind: <span className="font-semibold">${tableState.gameState.bigBlind}</span></div>
                   <div>Current Bet: <span className="font-semibold text-yellow-400">${tableState.gameState.currentBet}</span></div>
-                  {tableState.gameState.currentPlayer !== null && (
+                  {tableState.gameState.currentPlayer !== null && tableState.gameState.currentPlayer !== undefined && (
                     <div>
                       Current Player: <span className="font-semibold text-green-400">
                         {tableState.players[tableState.gameState.currentPlayer]?.name}
