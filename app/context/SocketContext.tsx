@@ -11,6 +11,15 @@ declare global {
   }
 }
 
+// Define the type for playerCardDiagnostics items
+interface PlayerCardDiagnostic {
+  position: number;
+  name: string;
+  hasCards: boolean;
+  cardCount: number;
+  cardDetails: { value: string; suit: string; hasFileName: boolean; fileName?: string }[];
+}
+
 // Define types for the context
 interface SocketContextType {
   socket: Socket | null;
@@ -230,7 +239,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           gameStatus: data.gameState.status,
           phase: data.gameState.phase,
           dealer: data.gameState.dealer,
-          playersWithCards: playerCardDiagnostics.filter(p => p.hasCards).length,
+          playersWithCards: playerCardDiagnostics.filter((p: PlayerCardDiagnostic) => p.hasCards).length,
           playerDetails: playerCardDiagnostics
         });
         
