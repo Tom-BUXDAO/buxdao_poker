@@ -16,7 +16,7 @@ export { default as Table } from './Table';
 export * from './TableElements';
 
 // Action Buttons
-export { default as ActionButtons } from './ActionButtons';
+export { default as ActionButtons } from './game-controls/ActionButtons';
 
 // Chat component
-export { default as GlobalChat } from './GlobalChat'; 
+export { default as GlobalChat } from './GlobalChat';
